@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { LogOut, BarChart3, Users, BookOpen, Settings } from 'lucide-react';
-import { logout } from './auth';
-import { useCourses } from './hooks';
+import { logout } from '../lib/auth';
+import { useCourses } from '../lib/hooks';
 
 interface AdminDashboardProps {
   userName: string;

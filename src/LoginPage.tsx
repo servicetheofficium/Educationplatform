@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { LogIn, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { login } from './auth';
+import { login } from '../lib/auth';
 
 interface LoginPageProps {
   onLoginSuccess: () => void;

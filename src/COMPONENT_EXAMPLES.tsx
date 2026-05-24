@@ -7,7 +7,7 @@
 // ============================================================
 
 import React from 'react';
-import { useCourses } from './hooks';
+import { useCourses } from '../lib/hooks';
 
 export function CoursesPage() {
   const { courses, loading, error } = useCourses();
@@ -43,7 +43,7 @@ export function CoursesPage() {
 // ============================================================
 
 import React, { useState } from 'react';
-import { useCoursesByLanguage } from './hooks';
+import { useCoursesByLanguage } from '../lib/hooks';
 
 export function LanguageCourses() {
   const [selectedLanguage, setSelectedLanguage] = useState('English');
@@ -88,7 +88,7 @@ export function LanguageCourses() {
 // ============================================================
 
 import React, { useState } from 'react';
-import { useEnrollStudent } from './hooks';
+import { useEnrollStudent } from '../lib/hooks';
 
 interface EnrollmentProps {
   studentId: string;
@@ -133,7 +133,7 @@ export function EnrollmentButton({ studentId, courseId }: EnrollmentProps) {
 // ============================================================
 
 import React from 'react';
-import { useStudentEnrollments } from './hooks';
+import { useStudentEnrollments } from '../lib/hooks';
 
 interface StudentDashboardProps {
   studentId: string;
@@ -195,8 +195,8 @@ export function StudentDashboard({ studentId }: StudentDashboardProps) {
 // ============================================================
 
 import React, { useState } from 'react';
-import { useCourses } from './hooks';
-import { useEnrollStudent, useUpdateEnrollmentStatus } from './hooks';
+import { useCourses } from '../lib/hooks';
+import { useEnrollStudent, useUpdateEnrollmentStatus } from '../lib/hooks';
 
 interface RegistrationFormProps {
   studentId: string;
@@ -272,8 +272,8 @@ export function CourseRegistrationForm({ studentId }: RegistrationFormProps) {
 // ============================================================
 
 import React, { useState } from 'react';
-import { useCourses } from './hooks';
-import * as db from './database.operations';
+import { useCourses } from '../lib/hooks';
+import * as db from '../lib/database.operations';
 
 export function AdminCoursesPage() {
   const { courses, loading } = useCourses();

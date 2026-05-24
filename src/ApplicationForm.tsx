@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
-import { createApplication } from './crud.operations';
-import { useCourses } from './hooks';
+import { createApplication } from '../lib/crud.operations';
+import { useCourses } from '../lib/hooks';
 
 interface ApplicationFormProps {
   onSubmitSuccess?: () => void;

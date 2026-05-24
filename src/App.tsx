@@ -22,8 +22,8 @@ import {
   FEATURES, 
   CONTACT_INFO,
   LOGO_URL 
-} from './constants';
-import { useCourses } from './hooks';
+} from '../lib/constants';
+import { useCourses } from '../lib/hooks';
 
 // --- Header Component ---
 const Navbar: React.FC = () => {

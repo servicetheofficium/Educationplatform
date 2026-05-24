@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { useAuth } from './useAuth';
+import { useAuth } from '../lib/useAuth';
 import { LoginPage } from './LoginPage';
 import { AdminDashboard } from './AdminDashboard';
 
