@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { sendAdminApplicationNotification } from "@/lib/email";
 
 // ============ APPLICATIONS ============
 
@@ -13,14 +14,19 @@ export async function createApplication(data: {
 }) {
   const supabase = await createClient();
   try {
-    const { data: result, error } = await supabase
-      .from("applications")
-      .insert([data])
-      .select()
-      .single();
+    const { error } = await supabase.from("applications").insert([data]);
 
     if (error) throw error;
-    return { success: true, data: result };
+
+    // Send admin notification (non-blocking — don't fail the submission if email fails)
+    sendAdminApplicationNotification({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      message: data.message,
+    }).catch((err) => console.error("Admin email notification failed:", err));
+
+    return { success: true };
   } catch (error) {
     return {
       success: false,

@@ -152,7 +152,14 @@ export function ApplicationForm() {
           disabled={loading}
         >
           <SelectTrigger>
-            <SelectValue placeholder="-- Select a course --" />
+            <SelectValue placeholder="-- Select a course --">
+              {formData.course_id
+                ? (() => {
+                    const c = courses.find((c) => c.id === formData.course_id);
+                    return c ? `${c.name} (${c.level})` : undefined;
+                  })()
+                : undefined}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {courses.map((course) => (

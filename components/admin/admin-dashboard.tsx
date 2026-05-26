@@ -1,9 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { LogOut, BarChart3, Users, BookOpen, Settings } from "lucide-react";
+import {
+  LogOut,
+  BarChart3,
+  Users,
+  BookOpen,
+  Settings,
+  Plus,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,71 +25,200 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { logout } from "@/lib/auth";
+import { createCourse, updateCourse, deleteCourse } from "@/lib/crud";
+import { StudentsPanel } from "./students-panel";
 import type { AdminUser, Course } from "@/lib/types";
 
 interface AdminDashboardProps {
   user: AdminUser;
   courses: Course[];
+  activeStudentCount: number;
+  totalEnrollmentCount: number;
 }
 
-export function AdminDashboard({ user, courses }: AdminDashboardProps) {
+type View = "dashboard" | "students";
+
+type CourseForm = {
+  name: string;
+  description: string;
+  language: string;
+  level: "beginner" | "intermediate" | "advanced";
+  max_students: number;
+  duration_weeks: number;
+  price: number;
+};
+
+const EMPTY_FORM: CourseForm = {
+  name: "",
+  description: "",
+  language: "",
+  level: "beginner",
+  max_students: 20,
+  duration_weeks: 12,
+  price: 0,
+};
+
+export function AdminDashboard({
+  user,
+  courses,
+  activeStudentCount,
+  totalEnrollmentCount,
+}: AdminDashboardProps) {
+  const [view, setView] = useState<View>("dashboard");
+  const [localCourses, setLocalCourses] = useState<Course[]>(courses);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Dialog states
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [deletingCourse, setDeletingCourse] = useState<Course | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Course form
+  const [courseForm, setCourseForm] = useState<CourseForm>(EMPTY_FORM);
+
+  // Sync form when opening edit dialog
+  useEffect(() => {
+    if (editingCourse) {
+      setCourseForm({
+        name: editingCourse.name,
+        description: editingCourse.description,
+        language: editingCourse.language,
+        level: editingCourse.level,
+        max_students: editingCourse.max_students,
+        duration_weeks: editingCourse.duration_weeks,
+        price: editingCourse.price,
+      });
+    }
+  }, [editingCourse]);
+
+  const stats = [
+    {
+      label: "Total Courses",
+      value: localCourses.length,
+      icon: BookOpen,
+      color: "bg-blue-100 text-blue-600",
+    },
+    {
+      label: "Active Students",
+      value: activeStudentCount,
+      icon: Users,
+      color: "bg-green-100 text-green-600",
+    },
+    {
+      label: "Total Enrollments",
+      value: totalEnrollmentCount,
+      icon: BarChart3,
+      color: "bg-purple-100 text-purple-600",
+    },
+  ];
 
   const handleLogout = async () => {
     setLoggingOut(true);
     await logout();
   };
 
-  const stats = [
-    {
-      label: "Total Courses",
-      value: courses.length,
-      icon: BookOpen,
-      color: "bg-blue-100 text-blue-600",
-    },
-    {
-      label: "Active Students",
-      value: "24",
-      icon: Users,
-      color: "bg-green-100 text-green-600",
-    },
-    {
-      label: "Total Enrollments",
-      value: "156",
-      icon: BarChart3,
-      color: "bg-purple-100 text-purple-600",
-    },
-  ];
+  const handleCreate = async () => {
+    setSaving(true);
+    const res = await createCourse(courseForm);
+    if (res.success && res.data) {
+      setLocalCourses((prev) => [res.data as Course, ...prev]);
+      setCreateOpen(false);
+    }
+    setSaving(false);
+  };
+
+  const handleUpdate = async () => {
+    if (!editingCourse) return;
+    setSaving(true);
+    const res = await updateCourse(editingCourse.id, courseForm);
+    if (res.success && res.data) {
+      setLocalCourses((prev) =>
+        prev.map((c) => (c.id === editingCourse.id ? (res.data as Course) : c))
+      );
+      setEditingCourse(null);
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (!deletingCourse) return;
+    setSaving(true);
+    const res = await deleteCourse(deletingCourse.id);
+    if (res.success) {
+      setLocalCourses((prev) => prev.filter((c) => c.id !== deletingCourse.id));
+      setDeletingCourse(null);
+    }
+    setSaving(false);
+  };
+
+  const field = (key: keyof CourseForm) => ({
+    value: String(courseForm[key]),
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setCourseForm((prev) => ({
+        ...prev,
+        [key]:
+          key === "max_students" || key === "duration_weeks" || key === "price"
+            ? Number(e.target.value)
+            : e.target.value,
+      })),
+  });
+
+  const nav = (
+    <nav className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-white">
+            KNC Admin Panel
+          </h1>
+          <p className="text-slate-400 text-sm">
+            Welcome back, {user.full_name}
+          </p>
+        </div>
+        <Button
+          onClick={handleLogout}
+          disabled={loggingOut}
+          variant="destructive"
+          className="flex items-center gap-2"
+        >
+          <LogOut size={18} />
+          {loggingOut ? "Logging out..." : "Logout"}
+        </Button>
+      </div>
+    </nav>
+  );
+
+  if (view === "students") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        {nav}
+        <StudentsPanel onBack={() => setView("dashboard")} />
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Navbar */}
-      <nav className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-white">
-              KNC Admin Panel
-            </h1>
-            <p className="text-slate-400 text-sm">
-              Welcome back, {user.full_name}
-            </p>
-          </div>
-          <Button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            variant="destructive"
-            className="flex items-center gap-2"
-          >
-            <LogOut size={18} />
-            {loggingOut ? "Logging out..." : "Logout"}
-          </Button>
-        </div>
-      </nav>
+      {nav}
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* Stats Grid */}
+        {/* Stats */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {stats.map((stat, index) => {
             const Icon = stat.icon;
@@ -132,67 +272,84 @@ export function AdminDashboard({ user, courses }: AdminDashboardProps) {
                   </p>
                 </div>
               </div>
-              <Button className="bg-brand-600 hover:bg-brand-700">
-                + Add Course
+              <Button
+                className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2"
+                onClick={() => {
+                  setCourseForm(EMPTY_FORM);
+                  setCreateOpen(true);
+                }}
+              >
+                <Plus size={16} />
+                Add Course
               </Button>
             </CardHeader>
             <CardContent className="px-8 pb-8">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-slate-700">
-                    <TableHead className="text-slate-300">Course Name</TableHead>
-                    <TableHead className="text-slate-300">Language</TableHead>
-                    <TableHead className="text-slate-300">Level</TableHead>
-                    <TableHead className="text-slate-300">Students</TableHead>
-                    <TableHead className="text-slate-300">Price</TableHead>
-                    <TableHead className="text-slate-300">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courses.map((course) => (
-                    <TableRow
-                      key={course.id}
-                      className="border-slate-700 hover:bg-slate-700/30 transition-colors"
-                    >
-                      <TableCell className="font-medium text-white">
-                        {course.name}
-                      </TableCell>
-                      <TableCell className="text-slate-300">
-                        {course.language}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className="bg-blue-500/20 text-blue-300 border-0 capitalize">
-                          {course.level}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-slate-300">
-                        {course.max_students}
-                      </TableCell>
-                      <TableCell className="font-semibold text-white">
-                        ${course.price}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-400 hover:text-blue-300 h-auto p-0"
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-400 hover:text-red-300 h-auto p-0"
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
+              {localCourses.length === 0 ? (
+                <p className="text-center text-slate-400 py-12">
+                  No courses yet. Add one above.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-700">
+                      <TableHead className="text-slate-300">Course Name</TableHead>
+                      <TableHead className="text-slate-300">Language</TableHead>
+                      <TableHead className="text-slate-300">Level</TableHead>
+                      <TableHead className="text-slate-300">Max Students</TableHead>
+                      <TableHead className="text-slate-300">Price</TableHead>
+                      <TableHead className="text-slate-300">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {localCourses.map((course) => (
+                      <TableRow
+                        key={course.id}
+                        className="border-slate-700 hover:bg-slate-700/30 transition-colors"
+                      >
+                        <TableCell className="font-medium text-white">
+                          {course.name}
+                        </TableCell>
+                        <TableCell className="text-slate-300">
+                          {course.language}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className="bg-blue-500/20 text-blue-300 border-0 capitalize">
+                            {course.level}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-slate-300">
+                          {course.max_students}
+                        </TableCell>
+                        <TableCell className="font-semibold text-white">
+                          ${course.price}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-blue-400 hover:text-blue-300 h-auto p-0 flex items-center gap-1"
+                              onClick={() => setEditingCourse(course)}
+                            >
+                              <Pencil size={13} />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1"
+                              onClick={() => setDeletingCourse(course)}
+                            >
+                              <Trash2 size={13} />
+                              Delete
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -204,7 +361,10 @@ export function AdminDashboard({ user, courses }: AdminDashboardProps) {
           transition={{ delay: 0.4 }}
           className="grid md:grid-cols-2 gap-6"
         >
-          <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50 hover:border-slate-600 transition-all cursor-pointer group">
+          <Card
+            onClick={() => setView("students")}
+            className="bg-slate-800/50 backdrop-blur-md border-slate-700/50 hover:border-slate-600 transition-all cursor-pointer group"
+          >
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-green-500/20 rounded-lg group-hover:bg-green-500/30 transition-all">
@@ -239,6 +399,149 @@ export function AdminDashboard({ user, courses }: AdminDashboardProps) {
           </Card>
         </motion.div>
       </main>
+
+      {/* ── Create Course Dialog ── */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add New Course</DialogTitle>
+          </DialogHeader>
+          <CourseFormFields form={courseForm} setForm={setCourseForm} field={field} />
+          <DialogFooter showCloseButton>
+            <Button
+              onClick={handleCreate}
+              disabled={saving || !courseForm.name || !courseForm.language}
+              className="bg-brand-600 hover:bg-brand-700"
+            >
+              {saving ? "Saving..." : "Create Course"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Course Dialog ── */}
+      <Dialog
+        open={!!editingCourse}
+        onOpenChange={(o) => !o && setEditingCourse(null)}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Course</DialogTitle>
+          </DialogHeader>
+          <CourseFormFields form={courseForm} setForm={setCourseForm} field={field} />
+          <DialogFooter showCloseButton>
+            <Button
+              onClick={handleUpdate}
+              disabled={saving || !courseForm.name || !courseForm.language}
+              className="bg-brand-600 hover:bg-brand-700"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Confirm Dialog ── */}
+      <Dialog
+        open={!!deletingCourse}
+        onOpenChange={(o) => !o && setDeletingCourse(null)}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Course</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete{" "}
+            <span className="font-semibold text-foreground">
+              {deletingCourse?.name}
+            </span>
+            ? This cannot be undone.
+          </p>
+          <DialogFooter showCloseButton>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={saving}
+            >
+              {saving ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function CourseFormFields({
+  form,
+  setForm,
+  field,
+}: {
+  form: CourseForm;
+  setForm: React.Dispatch<React.SetStateAction<CourseForm>>;
+  field: (key: keyof CourseForm) => {
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  };
+}) {
+  return (
+    <div className="grid gap-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Course Name *</label>
+          <Input placeholder="e.g. Japanese Beginner" {...field("name")} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Language *</label>
+          <Input placeholder="e.g. Japanese" {...field("language")} />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Level</label>
+        <Select
+          value={form.level}
+          onValueChange={(val) =>
+            setForm((prev) => ({
+              ...prev,
+              level: (val ?? "beginner") as CourseForm["level"],
+            }))
+          }
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="beginner">Beginner</SelectItem>
+            <SelectItem value="intermediate">Intermediate</SelectItem>
+            <SelectItem value="advanced">Advanced</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Description</label>
+        <Textarea
+          placeholder="Short course description..."
+          rows={3}
+          {...field("description")}
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Max Students</label>
+          <Input type="number" min={1} {...field("max_students")} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Duration (weeks)</label>
+          <Input type="number" min={1} {...field("duration_weeks")} />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium">Price ($)</label>
+          <Input type="number" min={0} step="0.01" {...field("price")} />
+        </div>
+      </div>
     </div>
   );
 }
