@@ -27,6 +27,7 @@ export type Course = {
   price: number;
   image_url: string | null;
   created_at: string;
+  updated_at: string;
 };
 
 export type StudentCourse = {
@@ -36,6 +37,23 @@ export type StudentCourse = {
   enrollment_date: string;
   status: "active" | "completed" | "dropped";
   created_at: string;
+};
+
+export type Application = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  course_id: string | null;
+  message: string | null;
+  status: "pending" | "approved" | "rejected" | "contacted";
+  created_at: string;
+  updated_at: string;
+  courses: { name: string } | null;
+};
+
+export type StudentWithProfile = Student & {
+  profiles: { email: string; full_name: string } | null;
 };
 
 export interface AdminUser {
