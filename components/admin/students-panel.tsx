@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, Users, FileText, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, FileText, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,8 @@ import {
 import { getStudents, getApplications, updateApplication } from "@/lib/crud";
 import type { StudentWithProfile, Application } from "@/lib/types";
 
+const STUDENTS_PER_PAGE = 5;
+
 const STATUS_STYLES: Record<Application["status"], string> = {
   pending: "bg-yellow-500/20 text-yellow-300 border-0",
   approved: "bg-green-500/20 text-green-300 border-0",
@@ -30,6 +32,55 @@ const STATUS_STYLES: Record<Application["status"], string> = {
   contacted: "bg-blue-500/20 text-blue-300 border-0",
   cancelled: "bg-slate-500/20 text-slate-300 border-0",
 };
+
+function PaginationBar({
+  page,
+  totalPages,
+  total,
+  perPage,
+  onPrev,
+  onNext,
+}: {
+  page: number;
+  totalPages: number;
+  total: number;
+  perPage: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
+      <p className="text-sm text-slate-400">
+        Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} of {total}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-slate-300 hover:text-white disabled:opacity-30"
+          disabled={page === 1}
+          onClick={onPrev}
+        >
+          <ChevronLeft size={16} />
+          Prev
+        </Button>
+        <span className="text-sm text-slate-400 px-2">
+          {page} / {totalPages}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-slate-300 hover:text-white disabled:opacity-30"
+          disabled={page === totalPages}
+          onClick={onNext}
+        >
+          Next
+          <ChevronRight size={16} />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-GB", {
@@ -53,6 +104,10 @@ export function StudentsPanel({
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const [enrolledPage, setEnrolledPage] = useState(1);
+  const [appsPage, setAppsPage] = useState(1);
+  const [cancelledPage, setCancelledPage] = useState(1);
 
   useEffect(() => {
     Promise.all([getStudents(), getApplications()]).then(([s, a]) => {
@@ -86,6 +141,28 @@ export function StudentsPanel({
     (a) => a.status !== "approved" && a.status !== "cancelled"
   );
   const cancelledApps = applications.filter((a) => a.status === "cancelled");
+
+  type EnrolledRow =
+    | { kind: "student"; data: StudentWithProfile }
+    | { kind: "approved"; data: Application };
+  const enrolledRows: EnrolledRow[] = [
+    ...students.map((s) => ({ kind: "student" as const, data: s })),
+    ...approvedApps.map((a) => ({ kind: "approved" as const, data: a })),
+  ];
+
+  const enrolledTotalPages = Math.max(1, Math.ceil(enrolledRows.length / STUDENTS_PER_PAGE));
+  const appsTotalPages = Math.max(1, Math.ceil(pendingApps.length / STUDENTS_PER_PAGE));
+  const cancelledTotalPages = Math.max(1, Math.ceil(cancelledApps.length / STUDENTS_PER_PAGE));
+
+  const pagedEnrolled = enrolledRows.slice(
+    (enrolledPage - 1) * STUDENTS_PER_PAGE, enrolledPage * STUDENTS_PER_PAGE
+  );
+  const pagedApps = pendingApps.slice(
+    (appsPage - 1) * STUDENTS_PER_PAGE, appsPage * STUDENTS_PER_PAGE
+  );
+  const pagedCancelled = cancelledApps.slice(
+    (cancelledPage - 1) * STUDENTS_PER_PAGE, cancelledPage * STUDENTS_PER_PAGE
+  );
 
   const tabBtn = (id: Tab, label: string, icon: React.ReactNode, count: number) => (
     <button
@@ -154,6 +231,7 @@ export function StudentsPanel({
                   No enrolled students yet.
                 </p>
               ) : (
+                <>
                 <Table>
                   <TableHeader>
                     <TableRow className="border-slate-700">
@@ -166,69 +244,81 @@ export function StudentsPanel({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {students.map((s) => (
-                      <TableRow
-                        key={s.id}
-                        className="border-slate-700 hover:bg-slate-700/30 transition-colors"
-                      >
-                        <TableCell className="font-medium text-white">
-                          {s.profiles?.full_name ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {s.profiles?.email ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {s.phone ?? "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="bg-blue-500/20 text-blue-300 border-0 capitalize">
-                            {s.language_level}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {formatDate(s.enrollment_date)}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-slate-500 text-xs">—</span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {approvedApps.map((app) => (
-                      <TableRow
-                        key={app.id}
-                        className="border-slate-700 hover:bg-slate-700/30 transition-colors"
-                      >
-                        <TableCell className="font-medium text-white">
-                          {app.name}
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {app.email}
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {app.phone ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {app.courses?.name ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {formatDate(app.updated_at)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={updatingId === app.id}
-                            onClick={() => handleStatusChange(app.id, "cancelled")}
-                            className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1 text-xs"
-                          >
-                            <XCircle size={13} />
-                            Cancel
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {pagedEnrolled.map((row) =>
+                      row.kind === "student" ? (
+                        <TableRow
+                          key={row.data.id}
+                          className="border-slate-700 hover:bg-slate-700/30 transition-colors"
+                        >
+                          <TableCell className="font-medium text-white">
+                            {row.data.profiles?.full_name ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-slate-300">
+                            {row.data.profiles?.email ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-slate-300">
+                            {row.data.phone ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-blue-500/20 text-blue-300 border-0 capitalize">
+                              {row.data.language_level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-300">
+                            {formatDate(row.data.enrollment_date)}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-slate-500 text-xs">—</span>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <TableRow
+                          key={row.data.id}
+                          className="border-slate-700 hover:bg-slate-700/30 transition-colors"
+                        >
+                          <TableCell className="font-medium text-white">
+                            {row.data.name}
+                          </TableCell>
+                          <TableCell className="text-slate-300">
+                            {row.data.email}
+                          </TableCell>
+                          <TableCell className="text-slate-300">
+                            {row.data.phone ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-slate-300">
+                            {row.data.courses?.name ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-slate-300">
+                            {formatDate(row.data.updated_at)}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={updatingId === row.data.id}
+                              onClick={() => handleStatusChange(row.data.id, "cancelled")}
+                              className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1 text-xs"
+                            >
+                              <XCircle size={13} />
+                              Cancel
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    )}
                   </TableBody>
                 </Table>
+                {enrolledRows.length > STUDENTS_PER_PAGE && (
+                  <PaginationBar
+                    page={enrolledPage}
+                    totalPages={enrolledTotalPages}
+                    total={enrolledRows.length}
+                    perPage={STUDENTS_PER_PAGE}
+                    onPrev={() => setEnrolledPage((p) => p - 1)}
+                    onNext={() => setEnrolledPage((p) => p + 1)}
+                  />
+                )}
+                </>
               )
             ) : tab === "applications" ? (
               pendingApps.length === 0 ? (
@@ -236,6 +326,7 @@ export function StudentsPanel({
                   No applications yet.
                 </p>
               ) : (
+                <>
                 <Table>
                   <TableHeader>
                     <TableRow className="border-slate-700">
@@ -248,7 +339,7 @@ export function StudentsPanel({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pendingApps.map((app) => (
+                    {pagedApps.map((app) => (
                       <TableRow
                         key={app.id}
                         className="border-slate-700 hover:bg-slate-700/30 transition-colors"
@@ -299,12 +390,24 @@ export function StudentsPanel({
                     ))}
                   </TableBody>
                 </Table>
+                {pendingApps.length > STUDENTS_PER_PAGE && (
+                  <PaginationBar
+                    page={appsPage}
+                    totalPages={appsTotalPages}
+                    total={pendingApps.length}
+                    perPage={STUDENTS_PER_PAGE}
+                    onPrev={() => setAppsPage((p) => p - 1)}
+                    onNext={() => setAppsPage((p) => p + 1)}
+                  />
+                )}
+                </>
               )
             ) : cancelledApps.length === 0 ? (
               <p className="text-center text-slate-400 py-16">
                 No cancelled students.
               </p>
             ) : (
+              <>
               <Table>
                 <TableHeader>
                   <TableRow className="border-slate-700">
@@ -317,7 +420,7 @@ export function StudentsPanel({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cancelledApps.map((app) => (
+                  {pagedCancelled.map((app) => (
                     <TableRow
                       key={app.id}
                       className="border-slate-700 hover:bg-slate-700/30 transition-colors"
@@ -352,6 +455,17 @@ export function StudentsPanel({
                   ))}
                 </TableBody>
               </Table>
+              {cancelledApps.length > STUDENTS_PER_PAGE && (
+                <PaginationBar
+                  page={cancelledPage}
+                  totalPages={cancelledTotalPages}
+                  total={cancelledApps.length}
+                  perPage={STUDENTS_PER_PAGE}
+                  onPrev={() => setCancelledPage((p) => p - 1)}
+                  onNext={() => setCancelledPage((p) => p + 1)}
+                />
+              )}
+              </>
             )}
           </CardContent>
         </Card>

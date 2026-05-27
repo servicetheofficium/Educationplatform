@@ -11,6 +11,8 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +65,8 @@ type CourseForm = {
   price: number;
 };
 
+const COURSES_PER_PAGE = 5;
+
 const EMPTY_FORM: CourseForm = {
   name: "",
   description: "",
@@ -93,6 +97,20 @@ export function AdminDashboard({
 
   // Course form
   const [courseForm, setCourseForm] = useState<CourseForm>(EMPTY_FORM);
+
+  // Pagination
+  const [coursePage, setCoursePage] = useState(1);
+  const totalCoursePages = Math.max(1, Math.ceil(localCourses.length / COURSES_PER_PAGE));
+  const paginatedCourses = localCourses.slice(
+    (coursePage - 1) * COURSES_PER_PAGE,
+    coursePage * COURSES_PER_PAGE
+  );
+
+  // Clamp page when courses list shrinks
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(localCourses.length / COURSES_PER_PAGE));
+    if (coursePage > maxPage) setCoursePage(maxPage);
+  }, [localCourses.length, coursePage]);
 
   // Sync form when opening edit dialog
   useEffect(() => {
@@ -309,7 +327,7 @@ export function AdminDashboard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {localCourses.map((course) => (
+                    {paginatedCourses.map((course) => (
                       <TableRow
                         key={course.id}
                         className="border-slate-700 hover:bg-slate-700/30 transition-colors"
@@ -357,6 +375,40 @@ export function AdminDashboard({
                     ))}
                   </TableBody>
                 </Table>
+              )}
+              {localCourses.length > COURSES_PER_PAGE && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
+                  <p className="text-sm text-slate-400">
+                    Showing {(coursePage - 1) * COURSES_PER_PAGE + 1}–
+                    {Math.min(coursePage * COURSES_PER_PAGE, localCourses.length)} of{" "}
+                    {localCourses.length} courses
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-300 hover:text-white disabled:opacity-30"
+                      disabled={coursePage === 1}
+                      onClick={() => setCoursePage((p) => p - 1)}
+                    >
+                      <ChevronLeft size={16} />
+                      Prev
+                    </Button>
+                    <span className="text-sm text-slate-400 px-2">
+                      {coursePage} / {totalCoursePages}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-300 hover:text-white disabled:opacity-30"
+                      disabled={coursePage === totalCoursePages}
+                      onClick={() => setCoursePage((p) => p + 1)}
+                    >
+                      Next
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
