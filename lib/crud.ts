@@ -63,7 +63,7 @@ export async function updateApplication(
     phone: string;
     course_id: string;
     message: string;
-    status: "pending" | "approved" | "rejected" | "contacted";
+    status: "pending" | "approved" | "rejected" | "contacted" | "cancelled";
   }>
 ) {
   const supabase = await createClient();

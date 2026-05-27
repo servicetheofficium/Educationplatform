@@ -144,15 +144,6 @@ export function LoginForm() {
           </CardContent>
         </Card>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <p className="text-sm text-blue-900">
-            <strong>Demo Credentials:</strong>
-            <br />
-            Email: admin@knc-school.com
-            <br />
-            Password: (See setup instructions)
-          </p>
-        </div>
       </motion.div>
     </div>
   );

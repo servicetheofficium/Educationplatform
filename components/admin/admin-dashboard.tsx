@@ -11,6 +11,8 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +65,8 @@ type CourseForm = {
   price: number;
 };
 
+const COURSES_PER_PAGE = 5;
+
 const EMPTY_FORM: CourseForm = {
   name: "",
   description: "",
@@ -82,6 +86,8 @@ export function AdminDashboard({
   const [view, setView] = useState<View>("dashboard");
   const [localCourses, setLocalCourses] = useState<Course[]>(courses);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [liveStudentCount, setLiveStudentCount] = useState(activeStudentCount);
+  const [liveTotalCount, setLiveTotalCount] = useState(totalEnrollmentCount);
 
   // Dialog states
   const [createOpen, setCreateOpen] = useState(false);
@@ -91,6 +97,20 @@ export function AdminDashboard({
 
   // Course form
   const [courseForm, setCourseForm] = useState<CourseForm>(EMPTY_FORM);
+
+  // Pagination
+  const [coursePage, setCoursePage] = useState(1);
+  const totalCoursePages = Math.max(1, Math.ceil(localCourses.length / COURSES_PER_PAGE));
+  const paginatedCourses = localCourses.slice(
+    (coursePage - 1) * COURSES_PER_PAGE,
+    coursePage * COURSES_PER_PAGE
+  );
+
+  // Clamp page when courses list shrinks
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(localCourses.length / COURSES_PER_PAGE));
+    if (coursePage > maxPage) setCoursePage(maxPage);
+  }, [localCourses.length, coursePage]);
 
   // Sync form when opening edit dialog
   useEffect(() => {
@@ -116,13 +136,13 @@ export function AdminDashboard({
     },
     {
       label: "Active Students",
-      value: activeStudentCount,
+      value: liveStudentCount,
       icon: Users,
       color: "bg-green-100 text-green-600",
     },
     {
       label: "Total Enrollments",
-      value: totalEnrollmentCount,
+      value: liveTotalCount,
       icon: BarChart3,
       color: "bg-purple-100 text-purple-600",
     },
@@ -207,7 +227,13 @@ export function AdminDashboard({
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         {nav}
-        <StudentsPanel onBack={() => setView("dashboard")} />
+        <StudentsPanel
+          onBack={() => setView("dashboard")}
+          onEnrollmentChange={(delta) => {
+            setLiveStudentCount((c) => c + delta);
+            setLiveTotalCount((c) => c + delta);
+          }}
+        />
       </div>
     );
   }
@@ -301,7 +327,7 @@ export function AdminDashboard({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {localCourses.map((course) => (
+                    {paginatedCourses.map((course) => (
                       <TableRow
                         key={course.id}
                         className="border-slate-700 hover:bg-slate-700/30 transition-colors"
@@ -349,6 +375,40 @@ export function AdminDashboard({
                     ))}
                   </TableBody>
                 </Table>
+              )}
+              {localCourses.length > COURSES_PER_PAGE && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
+                  <p className="text-sm text-slate-400">
+                    Showing {(coursePage - 1) * COURSES_PER_PAGE + 1}–
+                    {Math.min(coursePage * COURSES_PER_PAGE, localCourses.length)} of{" "}
+                    {localCourses.length} courses
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-300 hover:text-white disabled:opacity-30"
+                      disabled={coursePage === 1}
+                      onClick={() => setCoursePage((p) => p - 1)}
+                    >
+                      <ChevronLeft size={16} />
+                      Prev
+                    </Button>
+                    <span className="text-sm text-slate-400 px-2">
+                      {coursePage} / {totalCoursePages}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-300 hover:text-white disabled:opacity-30"
+                      disabled={coursePage === totalCoursePages}
+                      onClick={() => setCoursePage((p) => p + 1)}
+                    >
+                      Next
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

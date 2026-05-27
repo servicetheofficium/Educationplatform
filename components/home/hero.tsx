@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { Navigation, ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { SCHOOL_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -36,7 +37,7 @@ export function Hero() {
             life, we&apos;re here to guide you every step of the way.
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-            <a
+            <Link
               href="#courses"
               className={cn(
                 buttonVariants({ variant: "default", size: "lg" }),
@@ -45,8 +46,8 @@ export function Hero() {
             >
               Explore Courses
               <ArrowRight size={20} className="ml-2 group-hover:translate-x-1 transition-transform" />
-            </a>
-            <a
+            </Link>
+            <Link
               href="#about"
               className={cn(
                 buttonVariants({ variant: "outline", size: "lg" }),
@@ -54,7 +55,7 @@ export function Hero() {
               )}
             >
               Learn More
-            </a>
+            </Link>
           </div>
           <div className="mt-10 flex items-center justify-center lg:justify-start gap-4">
             <div className="flex -space-x-3">
