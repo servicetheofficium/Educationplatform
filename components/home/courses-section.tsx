@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { CourseCard, CourseDetailsModal } from "./index";
 import type { Course } from "@/lib/types";
 import type { CourseDisplayData } from "./course-card";
@@ -54,11 +56,21 @@ function toCourseDisplayData(course: Course): CourseDisplayData {
 
 export function CoursesSection({ courses }: CoursesSectionProps) {
   const [selectedCourse, setSelectedCourse] = useState<CourseDisplayData | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filtered = courses.filter((c) => {
+    const q = search.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.language.toLowerCase().includes(q) ||
+      c.level.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <>
       <div className="container mx-auto max-w-6xl px-6">
-        <div className="mb-16 text-center">
+        <div className="mb-12 text-center">
           <span className="text-brand-600 font-bold tracking-widest uppercase text-sm block mb-3 font-display">
             Our Programs
           </span>
@@ -67,13 +79,23 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
           </h2>
         </div>
 
-        {courses.length === 0 ? (
+        <div className="relative mb-8 max-w-md mx-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search by name, language, or level..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {filtered.length === 0 ? (
           <div className="text-center py-12 text-slate-600">
-            No courses available
+            {search ? `No courses match "${search}"` : "No courses available"}
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-10">
-            {courses.map((course) => (
+            {filtered.map((course) => (
               <CourseCard
                 key={course.id}
                 course={toCourseDisplayData(course)}

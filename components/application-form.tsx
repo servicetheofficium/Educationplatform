@@ -1,19 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Send, CheckCircle2, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useRef, useEffect } from "react";
+import { Send, CheckCircle2, AlertCircle, ChevronsUpDown, Check, Search } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import { createApplication } from "@/lib/crud";
 import { useCourses } from "@/lib/hooks";
 
@@ -28,7 +22,31 @@ export function ApplicationForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [courseOpen, setCourseOpen] = useState(false);
+  const [courseSearch, setCourseSearch] = useState("");
+  const comboboxRef = useRef<HTMLDivElement>(null);
   const { courses } = useCourses();
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
+        setCourseOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredCourses = courses.filter((c) => {
+    const q = courseSearch.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.language.toLowerCase().includes(q) ||
+      c.level.toLowerCase().includes(q)
+    );
+  });
+
+  const selectedCourse = courses.find((c) => c.id === formData.course_id);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -144,31 +162,71 @@ export function ApplicationForm() {
 
       <div className="space-y-1.5">
         <Label>Course Interest</Label>
-        <Select
-          value={formData.course_id}
-          onValueChange={(val) =>
-            setFormData((prev) => ({ ...prev, course_id: val ?? "" }))
-          }
-          disabled={loading}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="-- Select a course --">
-              {formData.course_id
-                ? (() => {
-                    const c = courses.find((c) => c.id === formData.course_id);
-                    return c ? `${c.name} (${c.level})` : undefined;
-                  })()
-                : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {courses.map((course) => (
-              <SelectItem key={course.id} value={course.id}>
-                {course.name} ({course.level})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div ref={comboboxRef} className="relative">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => {
+              setCourseOpen((prev) => !prev);
+              setCourseSearch("");
+            }}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "w-full justify-between font-normal"
+            )}
+          >
+            {selectedCourse
+              ? `${selectedCourse.name} (${selectedCourse.level})`
+              : "-- Select a course --"}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </button>
+
+          {courseOpen && (
+            <div className="absolute z-50 top-full left-0 w-full mt-1 bg-white border border-input rounded-lg shadow-lg overflow-hidden">
+              <div className="p-2 border-b border-input">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search courses..."
+                    value={courseSearch}
+                    onChange={(e) => setCourseSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 text-sm outline-none bg-transparent placeholder:text-slate-400"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="max-h-48 overflow-y-auto p-1">
+                {filteredCourses.length === 0 ? (
+                  <p className="text-center text-sm text-slate-400 py-4">No courses found.</p>
+                ) : (
+                  filteredCourses.map((course) => (
+                    <button
+                      key={course.id}
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, course_id: course.id }));
+                        setCourseOpen(false);
+                      }}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-sm rounded-md hover:bg-slate-50 flex items-center gap-2 transition-colors",
+                        formData.course_id === course.id && "bg-slate-50"
+                      )}
+                    >
+                      <Check
+                        className={cn(
+                          "h-4 w-4 shrink-0 text-brand-600",
+                          formData.course_id === course.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {course.name} ({course.level})
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="space-y-1.5">

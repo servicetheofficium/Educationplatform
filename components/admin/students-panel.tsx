@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Users, FileText, XCircle } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -164,26 +165,6 @@ export function StudentsPanel({
     (cancelledPage - 1) * STUDENTS_PER_PAGE, cancelledPage * STUDENTS_PER_PAGE
   );
 
-  const tabBtn = (id: Tab, label: string, icon: React.ReactNode, count: number) => (
-    <button
-      onClick={() => setTab(id)}
-      className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-        tab === id
-          ? "border-green-500 text-white"
-          : "border-transparent text-slate-400 hover:text-slate-200"
-      }`}
-    >
-      <span className="flex items-center gap-2">
-        {icon}
-        {label}{" "}
-        {!loading && (
-          <span className="bg-slate-700 text-slate-300 rounded-full px-2 py-0.5 text-xs">
-            {count}
-          </span>
-        )}
-      </span>
-    </button>
-  );
 
   return (
     <div>
@@ -191,7 +172,7 @@ export function StudentsPanel({
         <Button
           variant="ghost"
           onClick={onBack}
-          className="text-slate-400 hover:text-white mb-8 -ml-2"
+          className="bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-white mb-8 -ml-2"
         >
           <ChevronLeft size={18} className="mr-1" />
           Back to Dashboard
@@ -213,11 +194,44 @@ export function StudentsPanel({
               </div>
             </div>
 
-            <div className="flex border-b border-slate-700">
-              {tabBtn("enrolled", "Enrolled Students", <Users size={15} />, students.length + approvedApps.length)}
-              {tabBtn("applications", "Applications", <FileText size={15} />, pendingApps.length)}
-              {tabBtn("cancelled", "Cancelled", <XCircle size={15} />, cancelledApps.length)}
-            </div>
+            <Tabs
+              value={tab}
+              onValueChange={(v) => setTab(v as Tab)}
+              className="w-full"
+            >
+              <TabsList
+                variant="line"
+                className="w-full justify-start h-auto pb-0 border-b border-slate-700 rounded-none gap-0 [&>[data-slot=tabs-trigger]]:text-slate-400 [&>[data-slot=tabs-trigger][data-active]]:text-white [&>[data-slot=tabs-trigger]]:after:bg-green-500 [&>[data-slot=tabs-trigger]]:px-5 [&>[data-slot=tabs-trigger]]:py-3"
+              >
+                <TabsTrigger value="enrolled">
+                  <Users size={15} />
+                  Enrolled Students
+                  {!loading && (
+                    <span className="bg-slate-700 text-slate-300 rounded-full px-2 py-0.5 text-xs">
+                      {students.length + approvedApps.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="applications">
+                  <FileText size={15} />
+                  Applications
+                  {!loading && (
+                    <span className="bg-slate-700 text-slate-300 rounded-full px-2 py-0.5 text-xs">
+                      {pendingApps.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="cancelled">
+                  <XCircle size={15} />
+                  Cancelled
+                  {!loading && (
+                    <span className="bg-slate-700 text-slate-300 rounded-full px-2 py-0.5 text-xs">
+                      {cancelledApps.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </CardHeader>
 
           <CardContent className="px-8 pb-8 pt-6">
