@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Menu, X, LogIn } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { NAV_LINKS, SCHOOL_NAME, LOGO_URL } from "@/lib/constants";
@@ -42,13 +42,6 @@ export function Navbar() {
             </a>
           ))}
           <a
-            href="/admin"
-            className="flex items-center gap-2 text-slate-600 hover:text-brand-600 font-medium transition-colors"
-          >
-            <LogIn size={18} />
-            <span>Admin</span>
-          </a>
-          <a
             href="#contact"
             className={cn(
               buttonVariants({ variant: "default" }),
@@ -81,14 +74,6 @@ export function Navbar() {
                   {link.label}
                 </a>
               ))}
-              <a
-                href="/admin"
-                className="text-lg font-medium text-slate-700 flex items-center gap-2 hover:text-brand-600 transition-colors"
-                onClick={() => setOpen(false)}
-              >
-                <LogIn size={18} />
-                Admin Login
-              </a>
               <a
                 href="#contact"
                 className={cn(

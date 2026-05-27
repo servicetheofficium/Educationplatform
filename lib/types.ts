@@ -46,7 +46,7 @@ export type Application = {
   phone: string | null;
   course_id: string | null;
   message: string | null;
-  status: "pending" | "approved" | "rejected" | "contacted";
+  status: "pending" | "approved" | "rejected" | "contacted" | "cancelled";
   created_at: string;
   updated_at: string;
   courses: { name: string } | null;

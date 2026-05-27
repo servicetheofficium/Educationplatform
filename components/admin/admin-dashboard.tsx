@@ -82,6 +82,8 @@ export function AdminDashboard({
   const [view, setView] = useState<View>("dashboard");
   const [localCourses, setLocalCourses] = useState<Course[]>(courses);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [liveStudentCount, setLiveStudentCount] = useState(activeStudentCount);
+  const [liveTotalCount, setLiveTotalCount] = useState(totalEnrollmentCount);
 
   // Dialog states
   const [createOpen, setCreateOpen] = useState(false);
@@ -116,13 +118,13 @@ export function AdminDashboard({
     },
     {
       label: "Active Students",
-      value: activeStudentCount,
+      value: liveStudentCount,
       icon: Users,
       color: "bg-green-100 text-green-600",
     },
     {
       label: "Total Enrollments",
-      value: totalEnrollmentCount,
+      value: liveTotalCount,
       icon: BarChart3,
       color: "bg-purple-100 text-purple-600",
     },
@@ -207,7 +209,13 @@ export function AdminDashboard({
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         {nav}
-        <StudentsPanel onBack={() => setView("dashboard")} />
+        <StudentsPanel
+          onBack={() => setView("dashboard")}
+          onEnrollmentChange={(delta) => {
+            setLiveStudentCount((c) => c + delta);
+            setLiveTotalCount((c) => c + delta);
+          }}
+        />
       </div>
     );
   }
