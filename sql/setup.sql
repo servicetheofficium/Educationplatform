@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS applications (
   phone VARCHAR(20),
   course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
   message TEXT,
-  status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'contacted')),
+  status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'contacted', 'cancelled')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

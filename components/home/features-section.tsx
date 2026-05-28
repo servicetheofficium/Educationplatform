@@ -13,7 +13,7 @@ export function FeaturesSection() {
             Why Choose Us
           </span>
           <h2 className="text-3xl lg:text-4xl font-display font-extrabold text-slate-900 leading-tight">
-            We provide the best environment for your education
+            We provide the best environment for your education & Visa Services
           </h2>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">

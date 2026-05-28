@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { X, BookOpen, Clock, Globe } from "lucide-react";
+import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -108,13 +109,13 @@ export function CourseDetailsModal({ course, onClose }: CourseDetailsModalProps)
                   </div>
 
                   <div className="pt-8 border-t border-slate-100 flex flex-col sm:flex-row gap-4">
-                    <a
+                    <Link
                       href="#contact"
                       onClick={onClose}
                       className={cn(buttonVariants({ variant: "default" }), "flex-1 bg-brand-600 hover:bg-brand-700 text-white rounded-xl py-4 font-bold shadow-lg shadow-brand-500/20 h-auto text-center")}
                     >
                       Apply for this Course
-                    </a>
+                    </Link>
                     <Button
                       variant="secondary"
                       onClick={onClose}

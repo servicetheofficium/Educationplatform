@@ -64,7 +64,7 @@ export const COURSES = [
       "Experienced Thai educators",
     ],
     image:
-      "https://images.unsplash.com/photo-1528642463367-8d7bd31a47e9?auto=format&fit=crop&q=80&w=800",
+      "https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&q=80&w=800",
     color: "bg-rose-50",
     textColor: "text-rose-600",
     borderColor: "border-rose-100",
