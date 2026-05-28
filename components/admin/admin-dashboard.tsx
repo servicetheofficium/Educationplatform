@@ -322,7 +322,7 @@ export function AdminDashboard({
                       <TableHead className="text-slate-300">Language</TableHead>
                       <TableHead className="text-slate-300">Level</TableHead>
                       <TableHead className="text-slate-300">Max Students</TableHead>
-                      <TableHead className="text-slate-300">Price</TableHead>
+                      <TableHead className="text-slate-300">Tuition Fees</TableHead>
                       <TableHead className="text-slate-300">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -347,7 +347,7 @@ export function AdminDashboard({
                           {course.max_students}
                         </TableCell>
                         <TableCell className="font-semibold text-white">
-                          ${course.price}
+                          ฿{course.price.toLocaleString()}
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-3">
@@ -598,7 +598,7 @@ function CourseFormFields({
           <Input type="number" min={1} {...field("duration_weeks")} />
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Price ($)</label>
+          <label className="text-sm font-medium">Tuition Fees (THB)</label>
           <Input type="number" min={0} step="0.01" {...field("price")} />
         </div>
       </div>
