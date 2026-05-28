@@ -97,7 +97,7 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
         ) : (
           <ScrollArea className="w-full max-w-[1008px] mx-auto whitespace-nowrap rounded-md">
             <div className="flex w-max space-x-6 pb-4">
-              {courses.map((course) => (
+              {filtered.map((course) => (
                 <div key={course.id} className="shrink-0 w-80">
                   <CourseCard
                     course={toCourseDisplayData(course)}

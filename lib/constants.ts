@@ -112,8 +112,8 @@ export const FEATURES = [
 
 export const CONTACT_INFO = {
   address: "123 Language Lane, Sukhumvit Road, Bangkok 10110, Thailand",
-  phone: "+66 (0) 2 123 4567",
-  email: "hello@knclanguage.com",
+  phone: "+66 (0) 8 1051 5558",
+  email: "knclanguageschool@gmail.com",
   hours: "Mon - Fri: 09:00 - 18:00, Sat: 10:00 - 15:00",
   socials: [
     { platform: "Facebook", url: "#" },
