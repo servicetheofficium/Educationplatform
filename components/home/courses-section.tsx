@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CourseCard, CourseDetailsModal } from "./index";
 import type { Course } from "@/lib/types";
 import type { CourseDisplayData } from "./course-card";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface CoursesSectionProps {
   courses: Course[];
@@ -72,15 +73,19 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
             No courses available
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-10">
-            {courses.map((course) => (
-              <CourseCard
-                key={course.id}
-                course={toCourseDisplayData(course)}
-                onSeeDetails={setSelectedCourse}
-              />
-            ))}
-          </div>
+          <ScrollArea className="w-full max-w-[1008px] mx-auto whitespace-nowrap rounded-md">
+            <div className="flex w-max space-x-6 pb-4">
+              {courses.map((course) => (
+                <div key={course.id} className="shrink-0 w-80">
+                  <CourseCard
+                    course={toCourseDisplayData(course)}
+                    onSeeDetails={setSelectedCourse}
+                  />
+                </div>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         )}
       </div>
 
