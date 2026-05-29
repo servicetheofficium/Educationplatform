@@ -95,10 +95,10 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
             {search ? `No courses match "${search}"` : "No courses available"}
           </div>
         ) : (
-          <ScrollArea className="w-full max-w-[1008px] mx-auto whitespace-nowrap rounded-md">
-            <div className="flex w-max space-x-6 pb-4">
+          <ScrollArea className="w-full max-w-[1008px] mx-auto rounded-md">
+            <div className="flex items-stretch w-max space-x-6 pb-4">
               {filtered.map((course) => (
-                <div key={course.id} className="shrink-0 w-80">
+                <div key={course.id} className="shrink-0 w-80 whitespace-normal flex flex-col">
                   <CourseCard
                     course={toCourseDisplayData(course)}
                     onSeeDetails={setSelectedCourse}
