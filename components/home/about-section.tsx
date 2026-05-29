@@ -47,7 +47,7 @@ export function AboutSection() {
               </h2>
             </div>
             <p className="text-slate-600 text-lg mb-6 leading-relaxed">
-              Founded in 2014, {SCHOOL_NAME} has been at the forefront of
+              Founded in 2026, {SCHOOL_NAME} has been at the forefront of
               language education in international hubs. We believe that learning
               a new language is the most powerful way to open doors to new
               careers, cultures, and friendships.

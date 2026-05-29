@@ -21,7 +21,7 @@ export function Footer() {
             </Link>
             <p className="max-w-sm mb-6 leading-relaxed">
               Empowering international students through language and cultural
-              immersion since 2014. Join our global community in the heart of
+              immersion since 2026. Join our global community in the heart of
               Bangkok.
             </p>
             <div className="flex gap-4">
@@ -74,9 +74,6 @@ export function Footer() {
               </li>
               <li>
                 <span className="text-white">Afternoon Shift:</span> 13:00 - 16:00
-              </li>
-              <li>
-                <span className="text-white">Evening Classes:</span> 18:00 - 21:00
               </li>
             </ul>
           </div>

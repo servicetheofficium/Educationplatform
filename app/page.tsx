@@ -6,6 +6,7 @@ import { CoursesSection } from "@/components/home/courses-section";
 import { FeaturesSection } from "@/components/home/features-section";
 import { AboutSection } from "@/components/home/about-section";
 import { ContactSection } from "@/components/home/contact-section";
+import { ServicesSection } from "@/components/home/services-section";
 import type { Course } from "@/lib/types";
 
 export default async function Home() {
@@ -25,6 +26,7 @@ export default async function Home() {
         </section>
         <FeaturesSection />
         <AboutSection />
+        <ServicesSection />
         <ContactSection />
       </main>
       <Footer />
