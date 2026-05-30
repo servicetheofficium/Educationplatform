@@ -6,6 +6,8 @@ export type Profile = {
   created_at: string;
 };
 
+export type VisaStatus = "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension";
+
 export type Student = {
   id: string;
   user_id: string;
@@ -13,6 +15,12 @@ export type Student = {
   phone: string;
   address: string;
   language_level: "beginner" | "intermediate" | "advanced";
+  nationality: string | null;
+  passport_number: string | null;
+  visa_status: VisaStatus | null;
+  duration_months: number | null;
+  visa_change_date: string | null;
+  visa_last_date: string | null;
   created_at: string;
 };
 
@@ -47,6 +55,12 @@ export type Application = {
   course_id: string | null;
   message: string | null;
   status: "pending" | "approved" | "rejected" | "contacted" | "cancelled";
+  nationality: string | null;
+  passport_number: string | null;
+  visa_status: VisaStatus | null;
+  duration_months: number | null;
+  visa_change_date: string | null;
+  visa_last_date: string | null;
   created_at: string;
   updated_at: string;
   courses: { name: string } | null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   LogOut,
@@ -11,8 +11,12 @@ import {
   Plus,
   Pencil,
   Trash2,
+  PanelLeftClose,
+  PanelLeftOpen,
   ChevronLeft,
   ChevronRight,
+  List,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +48,7 @@ import {
 import { logout } from "@/lib/auth";
 import { createCourse, updateCourse, deleteCourse } from "@/lib/crud";
 import { StudentsPanel } from "./students-panel";
+import { StudentListPanel } from "./student-list-panel";
 import type { AdminUser, Course } from "@/lib/types";
 
 interface AdminDashboardProps {
@@ -53,7 +58,7 @@ interface AdminDashboardProps {
   totalEnrollmentCount: number;
 }
 
-type View = "dashboard" | "students";
+type View = "dashboard" | "student-list" | "student-applications" | "settings";
 
 type CourseForm = {
   name: string;
@@ -84,6 +89,7 @@ export function AdminDashboard({
   totalEnrollmentCount,
 }: AdminDashboardProps) {
   const [view, setView] = useState<View>("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [localCourses, setLocalCourses] = useState<Course[]>(courses);
   const [loggingOut, setLoggingOut] = useState(false);
   const [liveStudentCount, setLiveStudentCount] = useState(activeStudentCount);
@@ -199,51 +205,123 @@ export function AdminDashboard({
       })),
   });
 
-  const nav = (
-    <nav className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-display font-bold text-white">
-            KNC Admin Panel
-          </h1>
-          <p className="text-slate-400 text-sm">
-            Welcome back, {user.full_name}
-          </p>
-        </div>
-        <Button
-          onClick={handleLogout}
-          disabled={loggingOut}
-          variant="destructive"
-          className="flex items-center gap-2"
+  const navItems: { id: View; label: string; icon: React.ElementType }[] = [
+    { id: "dashboard", label: "Dashboard", icon: BarChart3 },
+    { id: "student-list", label: "Student List", icon: List },
+    { id: "student-applications", label: "Student Applications", icon: FileText },
+  ];
+
+  const sidebar = (
+    <aside className={`${sidebarOpen ? "w-64" : "w-16"} min-h-screen bg-slate-900 border-r border-slate-700/50 flex flex-col shrink-0 transition-all duration-300 overflow-hidden`}>
+      <div className={`flex items-center border-b border-slate-700/50 ${sidebarOpen ? "px-6 py-6 justify-between" : "px-3 py-4 justify-center"}`}>
+        {sidebarOpen && (
+          <div>
+            <h1 className="text-xl font-display font-bold text-white">KNC Admin</h1>
+            <p className="text-slate-400 text-xs mt-1 truncate">{user.full_name}</p>
+          </div>
+        )}
+        <button
+          onClick={() => setSidebarOpen((o) => !o)}
+          className="text-slate-400 hover:text-white transition-colors shrink-0"
         >
-          <LogOut size={18} />
-          {loggingOut ? "Logging out..." : "Logout"}
-        </Button>
+          {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+        </button>
       </div>
-    </nav>
+
+      <nav className="flex-1 px-3 py-4 space-y-1">
+        {navItems.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setView(id)}
+            title={!sidebarOpen ? label : undefined}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              view === id
+                ? "bg-brand-600 text-white"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            } ${!sidebarOpen ? "justify-center" : ""}`}
+          >
+            <Icon size={18} className="shrink-0" />
+            {sidebarOpen && <span>{label}</span>}
+          </button>
+        ))}
+      </nav>
+
+      <div className="px-3 py-4 border-t border-slate-700/50">
+        <button
+          onClick={() => setView("settings")}
+          title={!sidebarOpen ? "Settings" : undefined}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+            view === "settings"
+              ? "bg-brand-600 text-white"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
+          } ${!sidebarOpen ? "justify-center" : ""}`}
+        >
+          <Settings size={18} className="shrink-0" />
+          {sidebarOpen && <span>Settings</span>}
+        </button>
+      </div>
+    </aside>
   );
 
-  if (view === "students") {
+  if (view === "student-list") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        {nav}
-        <StudentsPanel
-          onBack={() => setView("dashboard")}
-          onEnrollmentChange={(delta) => {
-            setLiveStudentCount((c) => c + delta);
-            setLiveTotalCount((c) => c + delta);
-          }}
-        />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+        {sidebar}
+        <div className="flex-1 min-w-0 overflow-x-hidden">
+          <StudentListPanel />
+        </div>
       </div>
     );
   }
 
+  if (view === "student-applications") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+        {sidebar}
+        <div className="flex-1 min-w-0 overflow-x-hidden">
+          <StudentsPanel
+            onBack={() => setView("dashboard")}
+            onEnrollmentChange={(delta) => {
+              setLiveStudentCount((c) => c + delta);
+              setLiveTotalCount((c) => c + delta);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "settings") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+        {sidebar}
+        <main className="flex-1 min-w-0 px-8 py-10">
+          <h2 className="text-2xl font-display font-bold text-white mb-8">Settings</h2>
+          <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50 max-w-md">
+            <CardContent className="p-6">
+              <h3 className="text-white font-semibold mb-1">Account</h3>
+              <p className="text-slate-400 text-sm mb-6">Signed in as {user.full_name}</p>
+              <Button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                variant="destructive"
+                className="flex items-center gap-2"
+              >
+                <LogOut size={16} />
+                {loggingOut ? "Logging out..." : "Logout"}
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {nav}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+      {sidebar}
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
+      <main className="flex-1 min-w-0 px-8 py-10 overflow-auto">
         {/* Stats */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {stats.map((stat, index) => {
@@ -410,51 +488,6 @@ export function AdminDashboard({
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Quick Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="grid md:grid-cols-2 gap-6"
-        >
-          <Card
-            onClick={() => setView("students")}
-            className="bg-slate-800/50 backdrop-blur-md border-slate-700/50 hover:border-slate-600 transition-all cursor-pointer group"
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-500/20 rounded-lg group-hover:bg-green-500/30 transition-all">
-                  <Users size={24} className="text-green-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">
-                    Manage Students
-                  </h3>
-                  <p className="text-slate-400 text-sm">
-                    View student profiles and enrollment status
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50 hover:border-slate-600 transition-all cursor-pointer group">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-purple-500/20 rounded-lg group-hover:bg-purple-500/30 transition-all">
-                  <Settings size={24} className="text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Settings</h3>
-                  <p className="text-slate-400 text-sm">
-                    Configure school information and policies
-                  </p>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </motion.div>

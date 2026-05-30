@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, Users, FileText, XCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, FileText, XCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -101,6 +101,7 @@ export function StudentsPanel({
   onEnrollmentChange?: (delta: number) => void;
 }) {
   const [tab, setTab] = useState<Tab>("enrolled");
+  const [search, setSearch] = useState("");
   const [students, setStudents] = useState<StudentWithProfile[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,6 +138,21 @@ export function StudentsPanel({
     setUpdatingId(null);
   }
 
+  const q = search.toLowerCase();
+
+  const matchApp = (a: Application) =>
+    !q ||
+    a.name.toLowerCase().includes(q) ||
+    a.email.toLowerCase().includes(q) ||
+    (a.phone ?? "").includes(q) ||
+    (a.courses?.name ?? "").toLowerCase().includes(q);
+
+  const matchStudent = (s: StudentWithProfile) =>
+    !q ||
+    (s.profiles?.full_name ?? "").toLowerCase().includes(q) ||
+    (s.profiles?.email ?? "").toLowerCase().includes(q) ||
+    (s.phone ?? "").includes(q);
+
   const approvedApps = applications.filter((a) => a.status === "approved");
   const pendingApps = applications.filter(
     (a) => a.status !== "approved" && a.status !== "cancelled"
@@ -147,37 +163,30 @@ export function StudentsPanel({
     | { kind: "student"; data: StudentWithProfile }
     | { kind: "approved"; data: Application };
   const enrolledRows: EnrolledRow[] = [
-    ...students.map((s) => ({ kind: "student" as const, data: s })),
-    ...approvedApps.map((a) => ({ kind: "approved" as const, data: a })),
+    ...students.filter(matchStudent).map((s) => ({ kind: "student" as const, data: s })),
+    ...approvedApps.filter(matchApp).map((a) => ({ kind: "approved" as const, data: a })),
   ];
+  const filteredPending = pendingApps.filter(matchApp);
+  const filteredCancelled = cancelledApps.filter(matchApp);
 
   const enrolledTotalPages = Math.max(1, Math.ceil(enrolledRows.length / STUDENTS_PER_PAGE));
-  const appsTotalPages = Math.max(1, Math.ceil(pendingApps.length / STUDENTS_PER_PAGE));
-  const cancelledTotalPages = Math.max(1, Math.ceil(cancelledApps.length / STUDENTS_PER_PAGE));
+  const appsTotalPages = Math.max(1, Math.ceil(filteredPending.length / STUDENTS_PER_PAGE));
+  const cancelledTotalPages = Math.max(1, Math.ceil(filteredCancelled.length / STUDENTS_PER_PAGE));
 
   const pagedEnrolled = enrolledRows.slice(
     (enrolledPage - 1) * STUDENTS_PER_PAGE, enrolledPage * STUDENTS_PER_PAGE
   );
-  const pagedApps = pendingApps.slice(
+  const pagedApps = filteredPending.slice(
     (appsPage - 1) * STUDENTS_PER_PAGE, appsPage * STUDENTS_PER_PAGE
   );
-  const pagedCancelled = cancelledApps.slice(
+  const pagedCancelled = filteredCancelled.slice(
     (cancelledPage - 1) * STUDENTS_PER_PAGE, cancelledPage * STUDENTS_PER_PAGE
   );
 
 
   return (
-    <div>
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        <Button
-          variant="ghost"
-          onClick={onBack}
-          className="bg-transparent text-slate-400 hover:bg-slate-700/50 hover:text-white mb-8 -ml-2"
-        >
-          <ChevronLeft size={18} className="mr-1" />
-          Back to Dashboard
-        </Button>
-
+    <div className="min-w-0 overflow-hidden">
+      <main className="px-6 py-12">
         <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50">
           <CardHeader className="p-8 pb-0">
             <div className="flex items-center gap-3 mb-6">
@@ -192,6 +201,17 @@ export function StudentsPanel({
                   Enrolled students and incoming applications
                 </p>
               </div>
+            </div>
+
+            <div className="relative mt-4 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search name, email, phone, course..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setEnrolledPage(1); setAppsPage(1); setCancelledPage(1); }}
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-slate-700/50 border border-slate-600 text-slate-200 placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-brand-500"
+              />
             </div>
 
             <Tabs
@@ -246,6 +266,7 @@ export function StudentsPanel({
                 </p>
               ) : (
                 <>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-slate-700">
@@ -260,51 +281,23 @@ export function StudentsPanel({
                   <TableBody>
                     {pagedEnrolled.map((row) =>
                       row.kind === "student" ? (
-                        <TableRow
-                          key={row.data.id}
-                          className="border-slate-700 hover:bg-slate-700/30 transition-colors"
-                        >
-                          <TableCell className="font-medium text-white">
-                            {row.data.profiles?.full_name ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-slate-300">
-                            {row.data.profiles?.email ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-slate-300">
-                            {row.data.phone ?? "—"}
-                          </TableCell>
+                        <TableRow key={row.data.id} className="border-slate-700 hover:bg-slate-700/30 transition-colors">
+                          <TableCell className="font-medium text-white">{row.data.profiles?.full_name ?? "—"}</TableCell>
+                          <TableCell className="text-slate-300">{row.data.profiles?.email ?? "—"}</TableCell>
+                          <TableCell className="text-slate-300">{row.data.phone ?? "—"}</TableCell>
                           <TableCell>
-                            <Badge className="bg-blue-500/20 text-blue-300 border-0 capitalize">
-                              {row.data.language_level}
-                            </Badge>
+                            <Badge className="bg-blue-500/20 text-blue-300 border-0 capitalize">{row.data.language_level}</Badge>
                           </TableCell>
-                          <TableCell className="text-slate-300">
-                            {formatDate(row.data.enrollment_date)}
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-slate-500 text-xs">—</span>
-                          </TableCell>
+                          <TableCell className="text-slate-300">{formatDate(row.data.enrollment_date)}</TableCell>
+                          <TableCell><span className="text-slate-500 text-xs">—</span></TableCell>
                         </TableRow>
                       ) : (
-                        <TableRow
-                          key={row.data.id}
-                          className="border-slate-700 hover:bg-slate-700/30 transition-colors"
-                        >
-                          <TableCell className="font-medium text-white">
-                            {row.data.name}
-                          </TableCell>
-                          <TableCell className="text-slate-300">
-                            {row.data.email}
-                          </TableCell>
-                          <TableCell className="text-slate-300">
-                            {row.data.phone ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-slate-300">
-                            {row.data.courses?.name ?? "—"}
-                          </TableCell>
-                          <TableCell className="text-slate-300">
-                            {formatDate(row.data.updated_at)}
-                          </TableCell>
+                        <TableRow key={row.data.id} className="border-slate-700 hover:bg-slate-700/30 transition-colors">
+                          <TableCell className="font-medium text-white">{row.data.name}</TableCell>
+                          <TableCell className="text-slate-300">{row.data.email}</TableCell>
+                          <TableCell className="text-slate-300">{row.data.phone ?? "—"}</TableCell>
+                          <TableCell className="text-slate-300">{row.data.courses?.name ?? "—"}</TableCell>
+                          <TableCell className="text-slate-300">{formatDate(row.data.updated_at)}</TableCell>
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -322,6 +315,7 @@ export function StudentsPanel({
                     )}
                   </TableBody>
                 </Table>
+                </div>
                 {enrolledRows.length > STUDENTS_PER_PAGE && (
                   <PaginationBar
                     page={enrolledPage}
@@ -341,6 +335,7 @@ export function StudentsPanel({
                 </p>
               ) : (
                 <>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-slate-700">
@@ -404,6 +399,7 @@ export function StudentsPanel({
                     ))}
                   </TableBody>
                 </Table>
+                </div>
                 {pendingApps.length > STUDENTS_PER_PAGE && (
                   <PaginationBar
                     page={appsPage}
@@ -422,6 +418,7 @@ export function StudentsPanel({
               </p>
             ) : (
               <>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="border-slate-700">
@@ -469,6 +466,7 @@ export function StudentsPanel({
                   ))}
                 </TableBody>
               </Table>
+              </div>
               {cancelledApps.length > STUDENTS_PER_PAGE && (
                 <PaginationBar
                   page={cancelledPage}

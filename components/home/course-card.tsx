@@ -33,8 +33,8 @@ interface CourseCardProps {
 
 export function CourseCard({ course, onSeeDetails }: CourseCardProps) {
   return (
-    <Card className={`rounded-3xl overflow-hidden border shadow-sm hover:shadow-xl transition-all duration-500 group ${course.borderColor} p-0`}>
-      <div className="h-56 overflow-hidden relative">
+    <Card className={`rounded-3xl overflow-hidden border shadow-sm hover:shadow-xl transition-all duration-500 group ${course.borderColor} p-0 flex flex-col h-full`}>
+      <div className="h-56 overflow-hidden relative shrink-0">
         <Image
           src={course.image}
           alt={course.name}
@@ -48,11 +48,11 @@ export function CourseCard({ course, onSeeDetails }: CourseCardProps) {
           </Badge>
         </div>
       </div>
-      <CardContent className="p-8 bg-white">
-        <h3 className="text-2xl font-display font-bold text-slate-900 mb-4">
+      <CardContent className="p-8 bg-white flex flex-col flex-1">
+        <h3 className="text-xl font-display font-bold text-slate-900 mb-4 leading-snug">
           {course.name}
         </h3>
-        <p className="text-slate-600 mb-6 line-clamp-2">{course.description}</p>
+        <p className="text-slate-600 mb-6 line-clamp-3">{course.description}</p>
 
         <div className="space-y-4 mb-8">
           <div className="flex flex-wrap gap-2">
@@ -74,7 +74,7 @@ export function CourseCard({ course, onSeeDetails }: CourseCardProps) {
 
         <Button
           onClick={() => onSeeDetails(course)}
-          className="w-full bg-slate-900 hover:bg-brand-600 text-white rounded-2xl py-3.5 font-bold h-auto group/btn"
+          className="w-full bg-slate-900 hover:bg-brand-600 text-white rounded-2xl py-3.5 font-bold h-auto group/btn mt-auto"
         >
           See Full Details
           <ArrowRight size={18} className="ml-2 group-hover/btn:translate-x-1 transition-transform" />

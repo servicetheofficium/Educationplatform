@@ -5,3 +5,4 @@ export { CourseDetailsModal } from "./course-details-modal";
 export { FeaturesSection } from "./features-section";
 export { AboutSection } from "./about-section";
 export { ContactSection } from "./contact-section";
+export { ServicesSection } from "./services-section";
