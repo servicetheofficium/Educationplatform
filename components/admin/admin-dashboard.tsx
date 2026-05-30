@@ -15,6 +15,8 @@ import {
   PanelLeftOpen,
   ChevronLeft,
   ChevronRight,
+  List,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,7 @@ import {
 import { logout } from "@/lib/auth";
 import { createCourse, updateCourse, deleteCourse } from "@/lib/crud";
 import { StudentsPanel } from "./students-panel";
+import { StudentListPanel } from "./student-list-panel";
 import type { AdminUser, Course } from "@/lib/types";
 
 interface AdminDashboardProps {
@@ -55,7 +58,7 @@ interface AdminDashboardProps {
   totalEnrollmentCount: number;
 }
 
-type View = "dashboard" | "students" | "settings";
+type View = "dashboard" | "student-list" | "student-applications" | "settings";
 
 type CourseForm = {
   name: string;
@@ -204,7 +207,8 @@ export function AdminDashboard({
 
   const navItems: { id: View; label: string; icon: React.ElementType }[] = [
     { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-    { id: "students", label: "Students", icon: Users },
+    { id: "student-list", label: "Student List", icon: List },
+    { id: "student-applications", label: "Student Applications", icon: FileText },
   ];
 
   const sidebar = (
@@ -259,11 +263,22 @@ export function AdminDashboard({
     </aside>
   );
 
-  if (view === "students") {
+  if (view === "student-list") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
         {sidebar}
-        <div className="flex-1">
+        <div className="flex-1 min-w-0 overflow-x-hidden">
+          <StudentListPanel />
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "student-applications") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+        {sidebar}
+        <div className="flex-1 min-w-0 overflow-x-hidden">
           <StudentsPanel
             onBack={() => setView("dashboard")}
             onEnrollmentChange={(delta) => {
@@ -280,7 +295,7 @@ export function AdminDashboard({
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
         {sidebar}
-        <main className="flex-1 px-8 py-10">
+        <main className="flex-1 min-w-0 px-8 py-10">
           <h2 className="text-2xl font-display font-bold text-white mb-8">Settings</h2>
           <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50 max-w-md">
             <CardContent className="p-6">
@@ -306,7 +321,7 @@ export function AdminDashboard({
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
       {sidebar}
 
-      <main className="flex-1 px-8 py-10 overflow-auto">
+      <main className="flex-1 min-w-0 px-8 py-10 overflow-auto">
         {/* Stats */}
         <div className="grid md:grid-cols-3 gap-6 mb-12">
           {stats.map((stat, index) => {

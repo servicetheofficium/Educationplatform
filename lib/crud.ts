@@ -64,6 +64,12 @@ export async function updateApplication(
     course_id: string;
     message: string;
     status: "pending" | "approved" | "rejected" | "contacted" | "cancelled";
+    nationality: string;
+    passport_number: string;
+    visa_status: "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension";
+    duration_months: number;
+    visa_change_date: string;
+    visa_last_date: string;
   }>
 ) {
   const supabase = await createClient();
@@ -232,6 +238,12 @@ export async function updateStudent(
     phone: string;
     address: string;
     language_level: "beginner" | "intermediate" | "advanced";
+    nationality: string;
+    passport_number: string;
+    visa_status: "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension";
+    duration_months: number;
+    visa_change_date: string;
+    visa_last_date: string;
   }>
 ) {
   const supabase = await createClient();
