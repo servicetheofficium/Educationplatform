@@ -4,6 +4,7 @@ import { SCHOOL_NAME } from "@/lib/constants";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Analytics } from "@vercel/analytics/next";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -20,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body><TooltipProvider>{children}</TooltipProvider></body>
+      <body><TooltipProvider>{children}</TooltipProvider><Analytics /></body>
     </html>
   );
 }
