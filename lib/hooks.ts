@@ -137,6 +137,36 @@ export const useEnrollStudent = () => {
   return { enroll, loading, error };
 };
 
+export const useDocumentServices = () => {
+  const [services, setServices] = useState<import("./types").DocumentService[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from("document_services")
+          .select("*")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true });
+        if (error) throw error;
+        setServices(data || []);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch services");
+        setServices([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  return { services, loading, error };
+};
+
 export const useUpdateEnrollmentStatus = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

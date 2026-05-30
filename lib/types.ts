@@ -76,3 +76,37 @@ export interface AdminUser {
   full_name: string;
   user_type: "admin" | "student";
 }
+
+export type DocumentService = {
+  id: string;
+  name: string;
+  price_display: string;
+  price_thb: number;
+  detail: string | null;
+  processing_time: string | null;
+  note: string | null;
+  category: "document" | "copy";
+  icon_name: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ServiceRequestStatus = "pending" | "processing" | "completed" | "cancelled";
+
+export type ServiceRequest = {
+  id: string;
+  service_id: string | null;
+  service_name: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  student_id: string | null;
+  quantity: number;
+  notes: string | null;
+  status: ServiceRequestStatus;
+  price_thb: number;
+  created_at: string;
+  updated_at: string;
+};

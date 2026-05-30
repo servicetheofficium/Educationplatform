@@ -12,6 +12,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+} from "@/components/ui/sheet";
+import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import {
@@ -420,37 +423,34 @@ export function StudentListPanel() {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editingRow} onOpenChange={(o) => !o && setEditingRow(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Student — {editingRow?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nationality</label>
-                <Input placeholder="e.g. Japanese" value={editForm.nationality} onChange={(e) => setEditForm((f) => ({ ...f, nationality: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Passport No.</label>
-                <Input placeholder="e.g. AB123456" value={editForm.passport_number} onChange={(e) => setEditForm((f) => ({ ...f, passport_number: e.target.value }))} />
-              </div>
+      {/* Edit Student Sheet */}
+      <Sheet open={!!editingRow} onOpenChange={(o) => !o && setEditingRow(null)}>
+        <SheetContent side="right" className="sm:max-w-md flex flex-col">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
+            <SheetTitle className="text-lg font-semibold">Edit Student</SheetTitle>
+            <SheetDescription>{editingRow?.name}</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Nationality</label>
+              <Input className="w-full" placeholder="e.g. Japanese" value={editForm.nationality} onChange={(e) => setEditForm((f) => ({ ...f, nationality: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Phone</label>
-                <Input placeholder="e.g. 0812345678" value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Duration (months)</label>
-                <Input type="number" min={1} placeholder="e.g. 12" value={editForm.duration_months} onChange={(e) => setEditForm((f) => ({ ...f, duration_months: e.target.value }))} />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Passport No.</label>
+              <Input className="w-full" placeholder="e.g. AB123456" value={editForm.passport_number} onChange={(e) => setEditForm((f) => ({ ...f, passport_number: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Phone</label>
+              <Input className="w-full" placeholder="e.g. 0812345678" value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Duration (months)</label>
+              <Input className="w-full" type="number" min={1} placeholder="e.g. 12" value={editForm.duration_months} onChange={(e) => setEditForm((f) => ({ ...f, duration_months: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Status</label>
               <Select value={editForm.visa_status} onValueChange={(v) => setEditForm((f) => ({ ...f, visa_status: v as VisaStatus }))}>
-                <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
                 <SelectContent>
                   {(Object.entries(VISA_LABELS) as [VisaStatus, string][]).map(([val, label]) => (
                     <SelectItem key={val} value={val}>{label}</SelectItem>
@@ -458,27 +458,25 @@ export function StudentListPanel() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Visa Change Date</label>
-                <Input type="date" value={editForm.visa_change_date} onChange={(e) => setEditForm((f) => ({ ...f, visa_change_date: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Visa Last Date</label>
-                <Input type="date" value={editForm.visa_last_date} onChange={(e) => setEditForm((f) => ({ ...f, visa_last_date: e.target.value }))} />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Visa Change Date</label>
+              <Input className="w-full" type="date" value={editForm.visa_change_date} onChange={(e) => setEditForm((f) => ({ ...f, visa_change_date: e.target.value }))} />
             </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Visa Last Date</label>
+              <Input className="w-full" type="date" value={editForm.visa_last_date} onChange={(e) => setEditForm((f) => ({ ...f, visa_last_date: e.target.value }))} />
+            </div>
+            {saveError && (
+              <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{saveError}</p>
+            )}
           </div>
-          {saveError && (
-            <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{saveError}</p>
-          )}
-          <DialogFooter>
-            <Button onClick={handleSave} disabled={saving} className="bg-brand-600 hover:bg-brand-700">
+          <SheetFooter className="px-6 py-4 border-t border-border">
+            <Button onClick={handleSave} disabled={saving} className="w-full bg-brand-600 hover:bg-brand-700">
               {saving ? "Saving..." : "Save Changes"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Confirm Dialog */}
       <Dialog open={!!deletingRow} onOpenChange={(o) => !o && setDeletingRow(null)}>
@@ -497,47 +495,42 @@ export function StudentListPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Add Student Dialog ── */}
-      <Dialog open={addOpen} onOpenChange={(o) => !o && setAddOpen(false)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add Student</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Full Name *</label>
-                <Input placeholder="e.g. John Smith" value={addForm.name} onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Email *</label>
-                <Input type="email" placeholder="e.g. john@email.com" value={addForm.email} onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))} />
-              </div>
+      {/* ── Add Student Sheet ── */}
+      <Sheet open={addOpen} onOpenChange={(o) => !o && setAddOpen(false)}>
+        <SheetContent side="right" className="sm:max-w-md flex flex-col">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
+            <SheetTitle className="text-lg font-semibold">Add Student</SheetTitle>
+            <SheetDescription>Create a new student account and record.</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Full Name *</label>
+              <Input className="w-full" placeholder="e.g. John Smith" value={addForm.name} onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Phone</label>
-                <Input placeholder="e.g. 0812345678" value={addForm.phone} onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nationality</label>
-                <Input placeholder="e.g. Japanese" value={addForm.nationality} onChange={(e) => setAddForm((f) => ({ ...f, nationality: e.target.value }))} />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Email *</label>
+              <Input className="w-full" type="email" placeholder="e.g. john@email.com" value={addForm.email} onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Passport No.</label>
-                <Input placeholder="e.g. AB123456" value={addForm.passport_number} onChange={(e) => setAddForm((f) => ({ ...f, passport_number: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Duration (months)</label>
-                <Input type="number" min={1} placeholder="e.g. 12" value={addForm.duration_months} onChange={(e) => setAddForm((f) => ({ ...f, duration_months: e.target.value }))} />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Phone</label>
+              <Input className="w-full" placeholder="e.g. 0812345678" value={addForm.phone} onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Nationality</label>
+              <Input className="w-full" placeholder="e.g. Japanese" value={addForm.nationality} onChange={(e) => setAddForm((f) => ({ ...f, nationality: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Passport No.</label>
+              <Input className="w-full" placeholder="e.g. AB123456" value={addForm.passport_number} onChange={(e) => setAddForm((f) => ({ ...f, passport_number: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Duration (months)</label>
+              <Input className="w-full" type="number" min={1} placeholder="e.g. 12" value={addForm.duration_months} onChange={(e) => setAddForm((f) => ({ ...f, duration_months: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Course</label>
               <Select value={addForm.course_id} onValueChange={(v) => setAddForm({ ...addForm, course_id: v ?? "" })}>
-                <SelectTrigger><SelectValue placeholder="Select course" /></SelectTrigger>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select course" /></SelectTrigger>
                 <SelectContent>
                   {courses.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
@@ -548,7 +541,7 @@ export function StudentListPanel() {
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Status</label>
               <Select value={addForm.visa_status} onValueChange={(v) => setAddForm((f) => ({ ...f, visa_status: v as VisaStatus }))}>
-                <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
                 <SelectContent>
                   {(Object.entries(VISA_LABELS) as [VisaStatus, string][]).map(([val, label]) => (
                     <SelectItem key={val} value={val}>{label}</SelectItem>
@@ -556,27 +549,25 @@ export function StudentListPanel() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Visa Change Date</label>
-                <Input type="date" value={addForm.visa_change_date} onChange={(e) => setAddForm((f) => ({ ...f, visa_change_date: e.target.value }))} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Visa Last Date</label>
-                <Input type="date" value={addForm.visa_last_date} onChange={(e) => setAddForm((f) => ({ ...f, visa_last_date: e.target.value }))} />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Visa Change Date</label>
+              <Input className="w-full" type="date" value={addForm.visa_change_date} onChange={(e) => setAddForm((f) => ({ ...f, visa_change_date: e.target.value }))} />
             </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Visa Last Date</label>
+              <Input className="w-full" type="date" value={addForm.visa_last_date} onChange={(e) => setAddForm((f) => ({ ...f, visa_last_date: e.target.value }))} />
+            </div>
+            {addError && (
+              <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{addError}</p>
+            )}
           </div>
-          {addError && (
-            <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{addError}</p>
-          )}
-          <DialogFooter>
-            <Button onClick={handleAdd} disabled={adding || !addForm.name || !addForm.email} className="bg-brand-600 hover:bg-brand-700">
+          <SheetFooter className="px-6 py-4 border-t border-border">
+            <Button onClick={handleAdd} disabled={adding || !addForm.name || !addForm.email} className="w-full bg-brand-600 hover:bg-brand-700">
               {adding ? "Adding..." : "Add Student"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </main>
   );
 }

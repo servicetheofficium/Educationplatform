@@ -1,55 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { motion } from "motion/react";
-import {
-  LogOut,
-  BarChart3,
-  Users,
-  BookOpen,
-  Settings,
-  Plus,
-  Pencil,
-  Trash2,
-  PanelLeftClose,
-  PanelLeftOpen,
-  ChevronLeft,
-  ChevronRight,
-  List,
-  FileText,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import * as dialog from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import * as select from "@/components/ui/select";
+import * as sheet from "@/components/ui/sheet";
+import * as table from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { logout } from "@/lib/auth";
-import { createCourse, updateCourse, deleteCourse } from "@/lib/crud";
-import { StudentsPanel } from "./students-panel";
-import { StudentListPanel } from "./student-list-panel";
+import { createCourse, deleteCourse, updateCourse } from "@/lib/crud";
 import type { AdminUser, Course } from "@/lib/types";
+import * as lucideReact from "lucide-react";
+import { motion } from "motion/react";
+import React, { useEffect, useState } from "react";
+import { ServicesPanel } from "./services-panel";
+import { StudentListPanel } from "./student-list-panel";
+import { StudentsPanel } from "./students-panel";
 
 interface AdminDashboardProps {
   user: AdminUser;
@@ -58,7 +26,7 @@ interface AdminDashboardProps {
   totalEnrollmentCount: number;
 }
 
-type View = "dashboard" | "student-list" | "student-applications" | "settings";
+type View = "dashboard" | "student-list" | "student-applications" | "services" | "settings";
 
 type CourseForm = {
   name: string;
@@ -137,19 +105,19 @@ export function AdminDashboard({
     {
       label: "Total Courses",
       value: localCourses.length,
-      icon: BookOpen,
+      icon: lucideReact.BookOpen,
       color: "bg-blue-100 text-blue-600",
     },
     {
       label: "Active Students",
       value: liveStudentCount,
-      icon: Users,
+      icon: lucideReact.Users,
       color: "bg-green-100 text-green-600",
     },
     {
       label: "Total Enrollments",
       value: liveTotalCount,
-      icon: BarChart3,
+      icon: lucideReact.BarChart3,
       color: "bg-purple-100 text-purple-600",
     },
   ];
@@ -206,13 +174,14 @@ export function AdminDashboard({
   });
 
   const navItems: { id: View; label: string; icon: React.ElementType }[] = [
-    { id: "dashboard", label: "Dashboard", icon: BarChart3 },
-    { id: "student-list", label: "Student List", icon: List },
-    { id: "student-applications", label: "Student Applications", icon: FileText },
+    { id: "dashboard", label: "Dashboard", icon: lucideReact.BarChart3 },
+    { id: "student-list", label: "Student List", icon: lucideReact.List },
+    { id: "student-applications", label: "Student Applications", icon: lucideReact.FileText },
+    { id: "services", label: "Services", icon: lucideReact.Wrench },
   ];
 
   const sidebar = (
-    <aside className={`${sidebarOpen ? "w-64" : "w-16"} min-h-screen bg-slate-900 border-r border-slate-700/50 flex flex-col shrink-0 transition-all duration-300 overflow-hidden`}>
+    <aside className={`${sidebarOpen ? "w-64" : "w-16"} h-screen sticky top-0 bg-slate-900 border-r border-slate-700/50 flex flex-col shrink-0 transition-all duration-300 overflow-hidden`}>
       <div className={`flex items-center border-b border-slate-700/50 ${sidebarOpen ? "px-6 py-6 justify-between" : "px-3 py-4 justify-center"}`}>
         {sidebarOpen && (
           <div>
@@ -224,7 +193,7 @@ export function AdminDashboard({
           onClick={() => setSidebarOpen((o) => !o)}
           className="text-slate-400 hover:text-white transition-colors shrink-0"
         >
-          {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+          {sidebarOpen ? <lucideReact.PanelLeftClose size={20} /> : <lucideReact.PanelLeftOpen size={20} />}
         </button>
       </div>
 
@@ -234,11 +203,10 @@ export function AdminDashboard({
             key={id}
             onClick={() => setView(id)}
             title={!sidebarOpen ? label : undefined}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-              view === id
-                ? "bg-brand-600 text-white"
-                : "text-slate-400 hover:text-white hover:bg-slate-800"
-            } ${!sidebarOpen ? "justify-center" : ""}`}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${view === id
+              ? "bg-brand-600 text-white"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
+              } ${!sidebarOpen ? "justify-center" : ""}`}
           >
             <Icon size={18} className="shrink-0" />
             {sidebarOpen && <span>{label}</span>}
@@ -250,13 +218,12 @@ export function AdminDashboard({
         <button
           onClick={() => setView("settings")}
           title={!sidebarOpen ? "Settings" : undefined}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-            view === "settings"
-              ? "bg-brand-600 text-white"
-              : "text-slate-400 hover:text-white hover:bg-slate-800"
-          } ${!sidebarOpen ? "justify-center" : ""}`}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${view === "settings"
+            ? "bg-brand-600 text-white"
+            : "text-slate-400 hover:text-white hover:bg-slate-800"
+            } ${!sidebarOpen ? "justify-center" : ""}`}
         >
-          <Settings size={18} className="shrink-0" />
+          <lucideReact.Settings size={18} className="shrink-0" />
           {sidebarOpen && <span>Settings</span>}
         </button>
       </div>
@@ -265,10 +232,21 @@ export function AdminDashboard({
 
   if (view === "student-list") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+      <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
         {sidebar}
-        <div className="flex-1 min-w-0 overflow-x-hidden">
+        <div className="flex-1 min-w-0 overflow-y-auto">
           <StudentListPanel />
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "services") {
+    return (
+      <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+        {sidebar}
+        <div className="flex-1 min-w-0 overflow-y-auto">
+          <ServicesPanel />
         </div>
       </div>
     );
@@ -276,9 +254,9 @@ export function AdminDashboard({
 
   if (view === "student-applications") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+      <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
         {sidebar}
-        <div className="flex-1 min-w-0 overflow-x-hidden">
+        <div className="flex-1 min-w-0 overflow-y-auto">
           <StudentsPanel
             onBack={() => setView("dashboard")}
             onEnrollmentChange={(delta) => {
@@ -293,9 +271,9 @@ export function AdminDashboard({
 
   if (view === "settings") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+      <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
         {sidebar}
-        <main className="flex-1 min-w-0 px-8 py-10">
+        <main className="flex-1 min-w-0 px-8 py-10 overflow-y-auto">
           <h2 className="text-2xl font-display font-bold text-white mb-8">Settings</h2>
           <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50 max-w-md">
             <CardContent className="p-6">
@@ -307,7 +285,7 @@ export function AdminDashboard({
                 variant="destructive"
                 className="flex items-center gap-2"
               >
-                <LogOut size={16} />
+                <lucideReact.LogOut size={16} />
                 {loggingOut ? "Logging out..." : "Logout"}
               </Button>
             </CardContent>
@@ -318,7 +296,7 @@ export function AdminDashboard({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
       {sidebar}
 
       <main className="flex-1 min-w-0 px-8 py-10 overflow-auto">
@@ -365,7 +343,7 @@ export function AdminDashboard({
             <CardHeader className="flex flex-row items-center justify-between p-8">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
-                  <BookOpen size={24} className="text-blue-400" />
+                  <lucideReact.BookOpen size={24} className="text-blue-400" />
                 </div>
                 <div>
                   <CardTitle className="text-2xl text-white">
@@ -383,7 +361,7 @@ export function AdminDashboard({
                   setCreateOpen(true);
                 }}
               >
-                <Plus size={16} />
+                <lucideReact.Plus size={16} />
                 Add Course
               </Button>
             </CardHeader>
@@ -393,41 +371,41 @@ export function AdminDashboard({
                   No courses yet. Add one above.
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-slate-300">Course Name</TableHead>
-                      <TableHead className="text-slate-300">Language</TableHead>
-                      <TableHead className="text-slate-300">Level</TableHead>
-                      <TableHead className="text-slate-300">Max Students</TableHead>
-                      <TableHead className="text-slate-300">Tuition Fees</TableHead>
-                      <TableHead className="text-slate-300">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <table.Table>
+                  <table.TableHeader>
+                    <table.TableRow className="border-slate-700">
+                      <table.TableHead className="text-slate-300">Course Name</table.TableHead>
+                      <table.TableHead className="text-slate-300">Language</table.TableHead>
+                      <table.TableHead className="text-slate-300">Level</table.TableHead>
+                      <table.TableHead className="text-slate-300">Max Students</table.TableHead>
+                      <table.TableHead className="text-slate-300">Tuition Fees</table.TableHead>
+                      <table.TableHead className="text-slate-300">Actions</table.TableHead>
+                    </table.TableRow>
+                  </table.TableHeader>
+                  <table.TableBody>
                     {paginatedCourses.map((course) => (
-                      <TableRow
+                      <table.TableRow
                         key={course.id}
                         className="border-slate-700 hover:bg-slate-700/30 transition-colors"
                       >
-                        <TableCell className="font-medium text-white">
+                        <table.TableCell className="font-medium text-white">
                           {course.name}
-                        </TableCell>
-                        <TableCell className="text-slate-300">
+                        </table.TableCell>
+                        <table.TableCell className="text-slate-300">
                           {course.language}
-                        </TableCell>
-                        <TableCell>
+                        </table.TableCell>
+                        <table.TableCell>
                           <Badge className="bg-blue-500/20 text-blue-300 border-0 capitalize">
                             {course.level}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-slate-300">
+                        </table.TableCell>
+                        <table.TableCell className="text-slate-300">
                           {course.max_students}
-                        </TableCell>
-                        <TableCell className="font-semibold text-white">
+                        </table.TableCell>
+                        <table.TableCell className="font-semibold text-white">
                           ฿{course.price.toLocaleString()}
-                        </TableCell>
-                        <TableCell>
+                        </table.TableCell>
+                        <table.TableCell>
                           <div className="flex gap-3">
                             <Button
                               variant="ghost"
@@ -435,7 +413,7 @@ export function AdminDashboard({
                               className="text-blue-400 hover:text-blue-300 h-auto p-0 flex items-center gap-1"
                               onClick={() => setEditingCourse(course)}
                             >
-                              <Pencil size={13} />
+                              <lucideReact.Pencil size={13} />
                               Edit
                             </Button>
                             <Button
@@ -444,15 +422,15 @@ export function AdminDashboard({
                               className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1"
                               onClick={() => setDeletingCourse(course)}
                             >
-                              <Trash2 size={13} />
+                              <lucideReact.Trash2 size={13} />
                               Delete
                             </Button>
                           </div>
-                        </TableCell>
-                      </TableRow>
+                        </table.TableCell>
+                      </table.TableRow>
                     ))}
-                  </TableBody>
-                </Table>
+                  </table.TableBody>
+                </table.Table>
               )}
               {localCourses.length > COURSES_PER_PAGE && (
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
@@ -469,7 +447,7 @@ export function AdminDashboard({
                       disabled={coursePage === 1}
                       onClick={() => setCoursePage((p) => p - 1)}
                     >
-                      <ChevronLeft size={16} />
+                      <lucideReact.ChevronLeft size={16} />
                       Prev
                     </Button>
                     <span className="text-sm text-slate-400 px-2">
@@ -483,7 +461,7 @@ export function AdminDashboard({
                       onClick={() => setCoursePage((p) => p + 1)}
                     >
                       Next
-                      <ChevronRight size={16} />
+                      <lucideReact.ChevronRight size={16} />
                     </Button>
                   </div>
                 </div>
@@ -493,56 +471,61 @@ export function AdminDashboard({
         </motion.div>
       </main>
 
-      {/* ── Create Course Dialog ── */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add New Course</DialogTitle>
-          </DialogHeader>
-          <CourseFormFields form={courseForm} setForm={setCourseForm} field={field} />
-          <DialogFooter showCloseButton>
+      {/* ── Create Course Sheet ── */}
+      <sheet.Sheet open={createOpen} onOpenChange={setCreateOpen}>
+        <sheet.SheetContent side="right" className="sm:max-w-lg flex flex-col">
+          <sheet.SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
+            <sheet.SheetTitle className="text-lg font-semibold">Add New Course</sheet.SheetTitle>
+            <sheet.SheetDescription>Fill in the course details below.</sheet.SheetDescription>
+          </sheet.SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <CourseFormFields form={courseForm} setForm={setCourseForm} field={field} />
+          </div>
+          <sheet.SheetFooter className="px-6 py-4 border-t border-border">
             <Button
               onClick={handleCreate}
               disabled={saving || !courseForm.name || !courseForm.language}
-              className="bg-brand-600 hover:bg-brand-700"
+              className="w-full bg-brand-600 hover:bg-brand-700"
+              size={"lg"}
             >
               {saving ? "Saving..." : "Create Course"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </sheet.SheetFooter>
+        </sheet.SheetContent>
+      </sheet.Sheet>
 
-      {/* ── Edit Course Dialog ── */}
-      <Dialog
-        open={!!editingCourse}
-        onOpenChange={(o) => !o && setEditingCourse(null)}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Course</DialogTitle>
-          </DialogHeader>
-          <CourseFormFields form={courseForm} setForm={setCourseForm} field={field} />
-          <DialogFooter showCloseButton>
+      {/* ── Edit Course Sheet ── */}
+      <sheet.Sheet open={!!editingCourse} onOpenChange={(o) => !o && setEditingCourse(null)}>
+        <sheet.SheetContent side="right" className="sm:max-w-lg flex flex-col">
+          <sheet.SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
+            <sheet.SheetTitle className="text-lg font-semibold">Edit Course</sheet.SheetTitle>
+            <sheet.SheetDescription>{editingCourse?.name}</sheet.SheetDescription>
+          </sheet.SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <CourseFormFields form={courseForm} setForm={setCourseForm} field={field} />
+          </div>
+          <sheet.SheetFooter className="px-6 py-4 border-t border-border">
             <Button
               onClick={handleUpdate}
               disabled={saving || !courseForm.name || !courseForm.language}
-              className="bg-brand-600 hover:bg-brand-700"
+              className="w-full bg-brand-600 hover:bg-brand-700"
+              size={"lg"}
             >
               {saving ? "Saving..." : "Save Changes"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </sheet.SheetFooter>
+        </sheet.SheetContent>
+      </sheet.Sheet>
 
       {/* ── Delete Confirm Dialog ── */}
-      <Dialog
+      <dialog.Dialog
         open={!!deletingCourse}
         onOpenChange={(o) => !o && setDeletingCourse(null)}
       >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete Course</DialogTitle>
-          </DialogHeader>
+        <dialog.DialogContent className="max-w-sm">
+          <dialog.DialogHeader>
+            <dialog.DialogTitle>Delete Course</dialog.DialogTitle>
+          </dialog.DialogHeader>
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete{" "}
             <span className="font-semibold text-foreground">
@@ -550,7 +533,7 @@ export function AdminDashboard({
             </span>
             ? This cannot be undone.
           </p>
-          <DialogFooter showCloseButton>
+          <dialog.DialogFooter showCloseButton>
             <Button
               variant="destructive"
               onClick={handleDelete}
@@ -558,9 +541,9 @@ export function AdminDashboard({
             >
               {saving ? "Deleting..." : "Delete"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </dialog.DialogFooter>
+        </dialog.DialogContent>
+      </dialog.Dialog>
     </div>
   );
 }
@@ -579,7 +562,7 @@ function CourseFormFields({
 }) {
   return (
     <div className="grid gap-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Course Name *</label>
           <Input placeholder="e.g. Japanese Beginner" {...field("name")} />
@@ -590,9 +573,9 @@ function CourseFormFields({
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 w-full">
         <label className="text-sm font-medium">Level</label>
-        <Select
+        <select.Select
           value={form.level}
           onValueChange={(val) =>
             setForm((prev) => ({
@@ -601,27 +584,28 @@ function CourseFormFields({
             }))
           }
         >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="beginner">Beginner</SelectItem>
-            <SelectItem value="intermediate">Intermediate</SelectItem>
-            <SelectItem value="advanced">Advanced</SelectItem>
-          </SelectContent>
-        </Select>
+          <select.SelectTrigger className='w-full'>
+            <select.SelectValue />
+          </select.SelectTrigger>
+          <select.SelectContent className='w-full'>
+            <select.SelectItem value="beginner">Beginner</select.SelectItem>
+            <select.SelectItem value="intermediate">Intermediate</select.SelectItem>
+            <select.SelectItem value="advanced">Advanced</select.SelectItem>
+          </select.SelectContent>
+        </select.Select>
       </div>
 
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Description</label>
         <Textarea
           placeholder="Short course description..."
-          rows={3}
+          rows={6}
           {...field("description")}
+
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Max Students</label>
           <Input type="number" min={1} {...field("max_students")} />
