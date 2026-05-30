@@ -1,9 +1,9 @@
 "use client";
 
-import { CheckCircle2, ArrowRight } from "lucide-react";
+import { motion } from "motion/react";
+import { ArrowRight, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 
 export interface CourseDisplayData {
@@ -29,57 +29,77 @@ export interface CourseDisplayData {
 interface CourseCardProps {
   course: CourseDisplayData;
   onSeeDetails: (course: CourseDisplayData) => void;
+  index?: number;
 }
 
-export function CourseCard({ course, onSeeDetails }: CourseCardProps) {
+export function CourseCard({ course, onSeeDetails, index = 0 }: CourseCardProps) {
   return (
-    <Card className={`rounded-3xl overflow-hidden border shadow-sm hover:shadow-xl transition-all duration-500 group ${course.borderColor} p-0 flex flex-col h-full`}>
-      <div className="h-56 overflow-hidden relative shrink-0">
-        <Image
-          src={course.image}
-          alt={course.name}
-          width={800}
-          height={450}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-        />
-        <div className="absolute top-4 left-4">
-          <Badge className={`${course.color} ${course.textColor} border-0 shadow-sm backdrop-blur-md`}>
-            {course.name.toUpperCase()}
-          </Badge>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+      className="pt-6 h-full"
+    >
+      <div className="relative bg-white rounded-2xl shadow-md flex flex-col h-[450px]">
+        {/* Floating image — negative margin lifts it above card */}
+        <div className="mx-4 -mt-6 h-52 shrink-0 rounded-xl overflow-hidden shadow-lg shadow-brand-500/60 relative z-10">
+          <Image
+            src={course.image}
+            alt={course.name}
+            fill
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+          <div className="absolute bottom-3 left-3">
+            <Badge className={`${course.color} ${course.textColor} border-0 text-xs font-bold px-2.5 py-0.5`}>
+              {course.language.toUpperCase()}
+            </Badge>
+          </div>
+          <div className="absolute top-3 right-3">
+            <span className="bg-white/20 backdrop-blur-md text-white text-xs font-semibold px-2.5 py-1 rounded-full border border-white/30 capitalize">
+              {course.level}
+            </span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 pt-5 pb-0 flex flex-col flex-1 overflow-hidden">
+          <h5 className="mb-2 font-display text-lg font-semibold leading-snug text-slate-900 line-clamp-1">
+            {course.name}
+          </h5>
+          <p className="text-sm font-light leading-relaxed text-slate-500 line-clamp-3 flex-1">
+            {course.description}
+          </p>
+        </div>
+
+        {/* Footer with divider */}
+        <div className="px-6 pt-3 pb-5">
+          <div className="flex items-center gap-4 border-t border-slate-100 pt-3 mb-4">
+            <div className="flex items-center gap-1.5">
+              <Clock size={12} className="text-brand-500" />
+              <span className="text-xs text-slate-500 font-medium">{course.duration_weeks} weeks</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Users size={12} className="text-brand-500" />
+              <span className="text-xs text-slate-500 font-medium">Max {course.max_students}</span>
+            </div>
+            {course.price > 0 && (
+              <span className="ml-auto text-brand-600 font-bold text-sm">
+                ${course.price.toLocaleString()}
+              </span>
+            )}
+          </div>
+
+          <Button
+            onClick={() => onSeeDetails(course)}
+            className="select-none rounded-xl bg-brand-600 hover:bg-brand-700 py-3 px-6 text-xs font-bold uppercase text-white shadow-md shadow-brand-500/20 hover:shadow-lg hover:shadow-brand-500/40 transition-all h-auto group/btn"
+          >
+            See Details
+            <ArrowRight size={13} className="ml-1.5 group-hover/btn:translate-x-1 transition-transform" />
+          </Button>
         </div>
       </div>
-      <CardContent className="p-8 bg-white flex flex-col flex-1">
-        <h3 className="text-xl font-display font-bold text-slate-900 mb-4 leading-snug">
-          {course.name}
-        </h3>
-        <p className="text-slate-600 mb-6 line-clamp-3">{course.description}</p>
-
-        <div className="space-y-4 mb-8">
-          <div className="flex flex-wrap gap-2">
-            {course.durations.map((d) => (
-              <Badge key={d} variant="outline" className="text-slate-500">
-                {d} Option
-              </Badge>
-            ))}
-          </div>
-          <ul className="space-y-2">
-            {course.benefits.slice(0, 3).map((benefit, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
-                <CheckCircle2 size={16} className="text-brand-500 shrink-0 mt-0.5" />
-                {benefit}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <Button
-          onClick={() => onSeeDetails(course)}
-          className="w-full bg-slate-900 hover:bg-brand-600 text-white rounded-2xl py-3.5 font-bold h-auto group/btn mt-auto"
-        >
-          See Full Details
-          <ArrowRight size={18} className="ml-2 group-hover/btn:translate-x-1 transition-transform" />
-        </Button>
-      </CardContent>
-    </Card>
+    </motion.div>
   );
 }

@@ -95,6 +95,10 @@
   }
 }
 
+@keyframes marquee-x {
+  to { transform: translateX(-50%); }
+}
+
 @layer utilities {
   .glass-nav {
     @apply sticky top-4 mx-auto w-[95%] max-w-6xl z-50 rounded-2xl border border-white/20 bg-white/70 backdrop-blur-md shadow-lg transition-all duration-300;
@@ -104,4 +108,17 @@
     background: radial-gradient(circle at top right, #f0fdf9, transparent 40%),
                 radial-gradient(circle at bottom left, #fff7ed, transparent 40%);
   }
+
+  .courses-gradient {
+    background: radial-gradient(circle at bottom right, #f0fdf9, transparent 40%),
+                radial-gradient(circle at top left, #fff7ed, transparent 40%);
+  }
+
+  .marquee-fade {
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+    mask-image: linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%);
+  }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

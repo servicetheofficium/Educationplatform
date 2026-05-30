@@ -21,7 +21,7 @@ export default async function Home() {
       <Navbar />
       <main>
         <Hero />
-        <section id="courses" className="py-24 px-6 relative">
+        <section id="courses" className="py-24 px-6 relative courses-gradient">
           <CoursesSection courses={(courses as Course[]) || []} />
         </section>
         <FeaturesSection />
