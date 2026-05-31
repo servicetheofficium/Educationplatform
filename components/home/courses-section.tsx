@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { CourseCard, CourseDetailsModal } from "./index";
 import type { Course } from "@/lib/types";
 import type { CourseDisplayData } from "./course-card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface CoursesSectionProps {
   courses: Course[];
@@ -14,6 +13,10 @@ interface CoursesSectionProps {
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&q=80&w=800";
+
+const CARD_WIDTH = 340;
+const CARD_GAP = 24;
+const SCROLL_SPEED = 0.35;
 
 function toCourseDisplayData(course: Course): CourseDisplayData {
   return {
@@ -58,6 +61,10 @@ function toCourseDisplayData(course: Course): CourseDisplayData {
 export function CoursesSection({ courses }: CoursesSectionProps) {
   const [selectedCourse, setSelectedCourse] = useState<CourseDisplayData | null>(null);
   const [search, setSearch] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>();
+  const paused = useRef(false);
+  const wheelResumeRef = useRef<ReturnType<typeof setTimeout>>();
 
   const filtered = courses.filter((c) => {
     const q = search.toLowerCase();
@@ -68,9 +75,59 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
     );
   });
 
+  const startAutoScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const tick = () => {
+      if (!paused.current && el) {
+        el.scrollLeft += SCROLL_SPEED;
+        // Seamless loop: jump back when first copy fully scrolled past
+        const halfWidth = (CARD_WIDTH + CARD_GAP) * filtered.length;
+        if (el.scrollLeft >= halfWidth) {
+          el.scrollLeft -= halfWidth;
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, [filtered.length]);
+
+  useEffect(() => {
+    if (search) return; // no auto-scroll in search mode
+    startAutoScroll();
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [search, startAutoScroll]);
+
+  const pause = () => { paused.current = true; };
+  const resume = () => { paused.current = false; };
+
+  // Convert vertical wheel to horizontal scroll in auto mode
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (search) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY + e.deltaX;
+      pause();
+      clearTimeout(wheelResumeRef.current);
+      wheelResumeRef.current = setTimeout(resume, 1000);
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [search]);
+  // Resume after touch ends with short delay so user can read before scroll continues
+  const resumeDelayed = () => { setTimeout(() => { paused.current = false; }, 1200); };
+
   return (
     <>
-      <div className="container mx-auto max-w-6xl px-6">
+      <div className="container mx-auto max-w-6xl px-8 py-6">
         <div className="mb-12 text-center">
           <span className="text-brand-600 font-bold tracking-widest uppercase text-sm block mb-3 font-display">
             Our Programs
@@ -80,13 +137,13 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
           </h2>
         </div>
 
-        <div className="relative mb-8 max-w-md mx-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <div className="relative mb-10 max-w-lg mx-auto">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none z-10" />
           <Input
             placeholder="Search by name, language, or level..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="h-12 pl-11 pr-4 rounded-2xl border-slate-200 bg-white shadow-sm text-sm focus-visible:border-brand-400 focus-visible:ring-brand-400/20"
           />
         </div>
 
@@ -95,19 +152,26 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
             {search ? `No courses match "${search}"` : "No courses available"}
           </div>
         ) : (
-          <ScrollArea className="w-full max-w-[1008px] mx-auto rounded-md">
-            <div className="flex items-stretch w-max space-x-6 pb-4">
-              {filtered.map((course) => (
-                <div key={course.id} className="shrink-0 w-80 whitespace-normal flex flex-col">
+          <div
+            ref={scrollRef}
+            className="overflow-x-auto overflow-y-hidden no-scrollbar marquee-fade py-6"
+            onMouseEnter={pause}
+            onMouseLeave={resume}
+            onTouchStart={pause}
+            onTouchEnd={resumeDelayed}
+          >
+            <div className={`flex ${search ? "w-max mx-auto" : ""}`}>
+              {(search ? filtered : [...filtered, ...filtered]).map((course, i) => (
+                <div key={`${course.id}-${i}`} className="w-[340px] shrink-0 pr-6">
                   <CourseCard
                     course={toCourseDisplayData(course)}
                     onSeeDetails={setSelectedCourse}
+                    index={i % filtered.length}
                   />
                 </div>
               ))}
             </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          </div>
         )}
       </div>
 

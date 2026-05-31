@@ -281,6 +281,164 @@ export async function deleteStudent(id: string) {
   }
 }
 
+// ============ DOCUMENT SERVICES ============
+
+export async function getDocumentServices() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("document_services")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to fetch services" };
+  }
+}
+
+export async function createDocumentService(data: {
+  name: string;
+  price_display: string;
+  price_thb: number;
+  detail?: string;
+  processing_time?: string;
+  note?: string;
+  category: "document" | "copy";
+  icon_name?: string;
+  sort_order: number;
+  is_active: boolean;
+}) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("document_services")
+      .insert([data])
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create service" };
+  }
+}
+
+export async function updateDocumentService(
+  id: string,
+  data: Partial<{
+    name: string;
+    price_display: string;
+    price_thb: number;
+    detail: string;
+    processing_time: string;
+    note: string;
+    category: "document" | "copy";
+    icon_name: string;
+    sort_order: number;
+    is_active: boolean;
+  }>
+) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("document_services")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update service" };
+  }
+}
+
+export async function deleteDocumentService(id: string) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase.from("document_services").delete().eq("id", id);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to delete service" };
+  }
+}
+
+// ============ SERVICE REQUESTS ============
+
+export async function getServiceRequests() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("service_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to fetch service requests" };
+  }
+}
+
+export async function createServiceRequest(data: {
+  service_id?: string;
+  service_name: string;
+  name: string;
+  email: string;
+  phone?: string;
+  student_id?: string;
+  quantity: number;
+  notes?: string;
+  price_thb: number;
+}) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("service_requests")
+      .insert([data])
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create service request" };
+  }
+}
+
+export async function updateServiceRequest(
+  id: string,
+  data: Partial<{
+    status: "pending" | "processing" | "completed" | "cancelled";
+    notes: string;
+    quantity: number;
+  }>
+) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("service_requests")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update service request" };
+  }
+}
+
+export async function deleteServiceRequest(id: string) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase.from("service_requests").delete().eq("id", id);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to delete service request" };
+  }
+}
+
 // ============ ENROLLMENTS ============
 
 export async function getEnrollments() {

@@ -179,6 +179,92 @@ CREATE POLICY "Admins can delete applications"
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid() AND profiles.user_type = 'admin')
   );
 
+-- document_services
+CREATE TABLE IF NOT EXISTS document_services (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name            VARCHAR(200) NOT NULL,
+  price_display   VARCHAR(100) NOT NULL,
+  price_thb       NUMERIC DEFAULT 0,
+  detail          VARCHAR(200),
+  processing_time VARCHAR(100),
+  note            VARCHAR(300),
+  category        VARCHAR(20) NOT NULL DEFAULT 'document' CHECK (category IN ('document', 'copy')),
+  icon_name       VARCHAR(50),
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  is_active       BOOLEAN NOT NULL DEFAULT true,
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- service_requests
+CREATE TABLE IF NOT EXISTS service_requests (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  service_id   UUID REFERENCES document_services(id) ON DELETE SET NULL,
+  service_name VARCHAR(200) NOT NULL,
+  name         VARCHAR(200) NOT NULL,
+  email        VARCHAR(200) NOT NULL,
+  phone        VARCHAR(50),
+  student_id   UUID REFERENCES students(id) ON DELETE SET NULL,
+  quantity     INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  notes        TEXT,
+  status       VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'cancelled')),
+  price_thb    NUMERIC DEFAULT 0,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ─── INDEXES (new tables) ────────────────────────────────────
+
+CREATE INDEX IF NOT EXISTS idx_document_services_category   ON document_services(category);
+CREATE INDEX IF NOT EXISTS idx_document_services_sort_order ON document_services(sort_order);
+CREATE INDEX IF NOT EXISTS idx_service_requests_status      ON service_requests(status);
+CREATE INDEX IF NOT EXISTS idx_service_requests_email       ON service_requests(email);
+CREATE INDEX IF NOT EXISTS idx_service_requests_created_at  ON service_requests(created_at DESC);
+
+-- ─── RLS (new tables) ────────────────────────────────────────
+
+ALTER TABLE document_services ENABLE ROW LEVEL SECURITY;
+ALTER TABLE service_requests  ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "document_services_select_public"  ON document_services;
+DROP POLICY IF EXISTS "document_services_insert_admin"   ON document_services;
+DROP POLICY IF EXISTS "document_services_update_admin"   ON document_services;
+DROP POLICY IF EXISTS "document_services_delete_admin"   ON document_services;
+DROP POLICY IF EXISTS "service_requests_insert_public"   ON service_requests;
+DROP POLICY IF EXISTS "service_requests_select_admin"    ON service_requests;
+DROP POLICY IF EXISTS "service_requests_update_admin"    ON service_requests;
+DROP POLICY IF EXISTS "service_requests_delete_admin"    ON service_requests;
+
+CREATE POLICY "document_services_select_public"
+  ON document_services FOR SELECT USING (true);
+
+CREATE POLICY "document_services_insert_admin"
+  ON document_services FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND user_type = 'admin'));
+
+CREATE POLICY "document_services_update_admin"
+  ON document_services FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND user_type = 'admin'));
+
+CREATE POLICY "document_services_delete_admin"
+  ON document_services FOR DELETE
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND user_type = 'admin'));
+
+CREATE POLICY "service_requests_insert_public"
+  ON service_requests FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "service_requests_select_admin"
+  ON service_requests FOR SELECT
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND user_type = 'admin'));
+
+CREATE POLICY "service_requests_update_admin"
+  ON service_requests FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND user_type = 'admin'));
+
+CREATE POLICY "service_requests_delete_admin"
+  ON service_requests FOR DELETE
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND user_type = 'admin'));
+
 -- ─── GRANTS ──────────────────────────────────────────────────
 
 GRANT SELECT ON courses TO anon;
@@ -188,3 +274,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON courses TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON students TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON student_courses TO authenticated;
+GRANT SELECT ON document_services TO anon;
+GRANT SELECT, INSERT ON service_requests TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON document_services TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON service_requests TO authenticated;

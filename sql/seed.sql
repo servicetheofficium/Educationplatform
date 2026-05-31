@@ -33,6 +33,24 @@ VALUES
   )
 ON CONFLICT DO NOTHING;
 
+-- ─── DOCUMENT SERVICES ───────────────────────────────────────
+
+INSERT INTO document_services (name, price_display, price_thb, detail, processing_time, note, category, icon_name, sort_order)
+VALUES
+  ('Immigration Form Completion',       '800 THB',       800,  'per set / per request',            NULL,                          'Submit in person with payment', 'document', 'FileText',   1),
+  ('Urgent Document Processing',        '800 THB',       800,  'per request',                       'Within 7 Business Days',      'Submit in person with payment', 'document', 'Zap',        2),
+  ('Standard Document Processing',      '500 THB',       500,  'per request',                       'Within 15 Business Days',     'Submit in person with payment', 'document', 'Clock',      3),
+  ('Student ID Card',                   '300 THB',       300,  'per card',                          '7 Business Days',             NULL,                            'document', 'CreditCard', 4),
+  ('Photo Service',                     '150 THB',       150,  'per 6 photos',                      'Photography service included', NULL,                           'document', 'Camera',     5),
+  ('Bank Document Service',             '700 THB',       700,  NULL,                                '7 Business Days',             NULL,                            'document', 'Building2',  6),
+  ('Bank Document + Student ID Package','1,000 THB',    1000,  NULL,                                '7 Business Days',             NULL,                            'document', 'Building2',  7),
+  ('SIM Card',                          '300 THB',       300,  'for students without Thai number',  'Prices may change without notice', NULL,                       'document', 'Smartphone', 8),
+  ('Textbooks',                         '500 THB',       500,  'per book',                          NULL,                          NULL,                            'document', 'BookOpen',   9),
+  ('Black & White Copies',              '3 THB / page',    3,  NULL,                                NULL,                          NULL,                            'copy',     'Copy',       10),
+  ('Color Copies',                      '10 THB / page',  10,  NULL,                                NULL,                          NULL,                            'copy',     'Copy',       11),
+  ('Color Scanning',                    '10 THB / page',  10,  NULL,                                NULL,                          NULL,                            'copy',     'Copy',       12)
+ON CONFLICT DO NOTHING;
+
 -- ─── ADMIN USER ──────────────────────────────────────────────
 -- IMPORTANT: The admin must be created in Supabase Auth first.
 -- Steps:
