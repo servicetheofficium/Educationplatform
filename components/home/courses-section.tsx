@@ -62,9 +62,9 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
   const [selectedCourse, setSelectedCourse] = useState<CourseDisplayData | null>(null);
   const [search, setSearch] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const rafRef = useRef<number>();
+  const rafRef = useRef<number>(undefined);
   const paused = useRef(false);
-  const wheelResumeRef = useRef<ReturnType<typeof setTimeout>>();
+  const wheelResumeRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const filtered = courses.filter((c) => {
     const q = search.toLowerCase();
