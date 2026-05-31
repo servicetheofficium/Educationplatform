@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  createColumnHelper,
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  flexRender,
+  type Column,
+} from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight, Users, Pencil, Trash2, Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -20,7 +27,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { getStudents, getApplications, getCourses, createApplication, updateApplication, updateStudent, deleteStudent, deleteApplication } from "@/lib/crud";
+import {
+  getStudents, getApplications, getCourses,
+  createApplication, updateApplication, updateStudent, deleteStudent, deleteApplication,
+} from "@/lib/crud";
 import type { StudentWithProfile, Application, Course, VisaStatus } from "@/lib/types";
 
 const PER_PAGE = 10;
@@ -33,11 +43,8 @@ const VISA_LABELS: Record<VisaStatus, string> = {
   third_extension:  "3rd Extension",
 };
 
-
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-GB", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 type RowSource = "student" | "application";
@@ -69,7 +76,6 @@ type EditForm = {
 };
 
 function buildRows(students: StudentWithProfile[], applications: Application[]): Row[] {
-  const approvedApps = applications.filter((a) => a.status === "approved");
   return [
     ...students.map((s) => ({
       id: s.id,
@@ -85,32 +91,50 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
       visa_change_date: s.visa_change_date ?? null,
       visa_last_date: s.visa_last_date ?? null,
     })),
-    ...approvedApps.map((a) => ({
-      id: a.id,
-      source: "application" as RowSource,
-      name: a.name,
-      nationality: a.nationality ?? null,
-      passport_number: a.passport_number ?? null,
-      phone: a.phone ?? null,
-      duration_months: a.duration_months ?? null,
-      course_level: a.courses?.name ?? null,
-      enrolled_date: a.updated_at,
-      visa_status: a.visa_status ?? null,
-      visa_change_date: a.visa_change_date ?? null,
-      visa_last_date: a.visa_last_date ?? null,
-    })),
-  ].sort((a, b) => new Date(a.enrolled_date).getTime() - new Date(b.enrolled_date).getTime())
-   .map((r, i) => ({ ...r, num: i + 1 }));
+    ...applications
+      .filter((a) => a.status === "approved")
+      .map((a) => ({
+        id: a.id,
+        source: "application" as RowSource,
+        name: a.name,
+        nationality: a.nationality ?? null,
+        passport_number: a.passport_number ?? null,
+        phone: a.phone ?? null,
+        duration_months: a.duration_months ?? null,
+        course_level: a.courses?.name ?? null,
+        enrolled_date: a.updated_at,
+        visa_status: a.visa_status ?? null,
+        visa_change_date: a.visa_change_date ?? null,
+        visa_last_date: a.visa_last_date ?? null,
+      })),
+  ]
+    .sort((a, b) => new Date(a.enrolled_date).getTime() - new Date(b.enrolled_date).getTime())
+    .map((r, i) => ({ ...r, num: i + 1 }));
 }
+
+function getPinStyle(column: Column<Row>, isHeader = false): React.CSSProperties {
+  const isPinned = column.getIsPinned();
+  if (!isPinned) return {};
+  return {
+    position: "sticky",
+    left: `${column.getStart("left")}px`,
+    zIndex: isHeader ? 20 : 10,
+    backgroundColor: "#1a2132",
+  };
+}
+
+const columnHelper = createColumnHelper<Row>();
 
 export function StudentListPanel() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
 
   const [editingRow, setEditingRow] = useState<Row | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ nationality: "", passport_number: "", phone: "", duration_months: "", visa_status: "", visa_change_date: "", visa_last_date: "" });
+  const [editForm, setEditForm] = useState<EditForm>({
+    nationality: "", passport_number: "", phone: "", duration_months: "",
+    visa_status: "", visa_change_date: "", visa_last_date: "",
+  });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -127,9 +151,7 @@ export function StudentListPanel() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { load(); }, []);
 
   async function load() {
     const [s, a, c] = await Promise.all([getStudents(), getApplications(), getCourses()]);
@@ -148,25 +170,12 @@ export function StudentListPanel() {
 
   async function handleAdd() {
     if (!addForm.name || !addForm.email) { setAddError("Name and email are required."); return; }
-    setAdding(true);
-    setAddError(null);
-    const res = await createApplication({
-      name: addForm.name,
-      email: addForm.email,
-      phone: addForm.phone || undefined,
-      course_id: addForm.course_id || undefined,
-      message: "",
-    });
-    if (!res.success) {
-      setAddError((res as { error?: string }).error ?? "Failed to create student.");
-      setAdding(false);
-      return;
-    }
-    // fetch fresh to get the new id, then immediately approve + set extra fields
+    setAdding(true); setAddError(null);
+    const res = await createApplication({ name: addForm.name, email: addForm.email, phone: addForm.phone || undefined, course_id: addForm.course_id || undefined, message: "" });
+    if (!res.success) { setAddError((res as { error?: string }).error ?? "Failed."); setAdding(false); return; }
     const freshApps = await getApplications();
     if (freshApps.success) {
-      const apps = freshApps.data as Application[];
-      const newest = apps.find((a) => a.email === addForm.email && a.status === "pending");
+      const newest = (freshApps.data as Application[]).find((a) => a.email === addForm.email && a.status === "pending");
       if (newest) {
         await updateApplication(newest.id, {
           status: "approved",
@@ -180,8 +189,7 @@ export function StudentListPanel() {
       }
     }
     await load();
-    setAddOpen(false);
-    setAdding(false);
+    setAddOpen(false); setAdding(false);
   }
 
   function openEdit(row: Row) {
@@ -200,8 +208,7 @@ export function StudentListPanel() {
 
   async function handleSave() {
     if (!editingRow) return;
-    setSaving(true);
-    setSaveError(null);
+    setSaving(true); setSaveError(null);
     const payload = {
       nationality: editForm.nationality || undefined,
       passport_number: editForm.passport_number || undefined,
@@ -215,16 +222,10 @@ export function StudentListPanel() {
       ? await updateStudent(editingRow.id, payload)
       : await updateApplication(editingRow.id, payload);
     if (res.success) {
-      setRows((prev) =>
-        prev.map((r) =>
-          r.id === editingRow.id
-            ? { ...r, nationality: payload.nationality ?? null, passport_number: payload.passport_number ?? null, phone: payload.phone ?? null, duration_months: payload.duration_months ?? null, visa_status: payload.visa_status ?? null, visa_change_date: payload.visa_change_date ?? null, visa_last_date: payload.visa_last_date ?? null }
-            : r
-        )
-      );
+      setRows((prev) => prev.map((r) => r.id === editingRow.id ? { ...r, ...payload, nationality: payload.nationality ?? null, passport_number: payload.passport_number ?? null, phone: payload.phone ?? null, duration_months: payload.duration_months ?? null, visa_status: payload.visa_status ?? null, visa_change_date: payload.visa_change_date ?? null, visa_last_date: payload.visa_last_date ?? null } : r));
       setEditingRow(null);
     } else {
-      setSaveError(res.error ?? "Failed to save. Check database policies.");
+      setSaveError(res.error ?? "Failed to save.");
     }
     setSaving(false);
   }
@@ -242,17 +243,177 @@ export function StudentListPanel() {
     setDeleting(false);
   }
 
-  const q = search.toLowerCase();
-  const filtered = q
-    ? rows.filter((r) =>
-        r.name.toLowerCase().includes(q) ||
-        (r.nationality ?? "").toLowerCase().includes(q) ||
-        (r.passport_number ?? "").toLowerCase().includes(q) ||
-        (r.phone ?? "").includes(q)
-      )
-    : rows;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
-  const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) =>
+      r.name.toLowerCase().includes(q) ||
+      (r.nationality ?? "").toLowerCase().includes(q) ||
+      (r.passport_number ?? "").toLowerCase().includes(q) ||
+      (r.phone ?? "").includes(q)
+    );
+  }, [rows, search]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const columns = useMemo(() => [
+    columnHelper.display({
+      id: "num",
+      header: "#",
+      cell: ({ row }) => <span className="text-slate-500 text-xs">{row.original.num}</span>,
+      size: 44,
+    }),
+    columnHelper.accessor("name", {
+      id: "name",
+      header: "Student Name",
+      cell: ({ row }) => {
+        const r = row.original;
+        return (
+          <Popover>
+            <PopoverTrigger className="text-white font-medium hover:text-blue-400 hover:underline transition-colors text-left whitespace-nowrap">
+              {r.name}
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-0 bg-slate-800 border-slate-700 text-slate-200" side="right" align="start">
+              <div className="px-4 py-3 border-b border-slate-700">
+                <p className="font-semibold text-white text-sm">{r.name}</p>
+                <p className="text-xs text-slate-400 mt-0.5 capitalize">{r.source === "student" ? "Registered Student" : "Enrolled via Application"}</p>
+              </div>
+              <div className="px-4 py-3 space-y-2 text-sm">
+                {([
+                  ["Nationality", r.nationality],
+                  ["Passport No.", r.passport_number],
+                  ["Phone", r.phone],
+                  ["Duration", r.duration_months ? `${r.duration_months} months` : null],
+                  ["Course / Level", r.course_level],
+                  ["Enrolled Date", formatDate(r.enrolled_date)],
+                  ["Visa Change Date", r.visa_change_date ? formatDate(r.visa_change_date) : null],
+                  ["Visa Last Date", r.visa_last_date ? formatDate(r.visa_last_date) : null],
+                  ["Visa Status", r.visa_status ? VISA_LABELS[r.visa_status] : null],
+                ] as [string, string | null][]).map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-4">
+                    <span className="text-slate-400 shrink-0">{label}</span>
+                    <span className="text-slate-200 text-right">{value ?? "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        );
+      },
+      size: 164,
+    }),
+    columnHelper.accessor("nationality", {
+      id: "nationality",
+      header: "Nationality",
+      cell: ({ getValue }) => <span className="text-slate-300">{getValue() ?? "—"}</span>,
+      size: 116,
+    }),
+    columnHelper.accessor("passport_number", {
+      id: "passport_number",
+      header: "Passport No.",
+      cell: ({ getValue }) => <span className="text-slate-300 font-mono text-xs">{getValue() ?? "—"}</span>,
+      size: 132,
+    }),
+    columnHelper.accessor("phone", {
+      id: "phone",
+      header: "Phone",
+      cell: ({ getValue }) => <span className="text-slate-300">{getValue() ?? "—"}</span>,
+      size: 124,
+    }),
+    columnHelper.accessor("duration_months", {
+      id: "duration_months",
+      header: "Duration",
+      cell: ({ getValue }) => <span className="text-slate-300">{getValue() ? `${getValue()} mo.` : "—"}</span>,
+      size: 80,
+    }),
+    columnHelper.accessor("course_level", {
+      id: "course_level",
+      header: "Course / Level",
+      cell: ({ getValue }) => <span className="text-slate-300 capitalize">{getValue() ?? "—"}</span>,
+      size: 188,
+    }),
+    columnHelper.accessor("visa_change_date", {
+      id: "visa_change_date",
+      header: "Visa Change",
+      cell: ({ getValue }) => <span className="text-slate-300 whitespace-nowrap">{getValue() ? formatDate(getValue()!) : "—"}</span>,
+      size: 116,
+    }),
+    columnHelper.accessor("visa_last_date", {
+      id: "visa_last_date",
+      header: "Visa Last",
+      cell: ({ getValue }) => <span className="text-slate-300 whitespace-nowrap">{getValue() ? formatDate(getValue()!) : "—"}</span>,
+      size: 104,
+    }),
+    columnHelper.accessor("visa_status", {
+      id: "visa_status",
+      header: "Visa Status",
+      cell: ({ row, getValue }) => {
+        const r = row.original;
+        return (
+          <Select
+            value={getValue() ?? ""}
+            onValueChange={async (val) => {
+              const status = val as VisaStatus;
+              const res = r.source === "student"
+                ? await updateStudent(r.id, { visa_status: status })
+                : await updateApplication(r.id, { visa_status: status });
+              if (res.success) {
+                setRows((prev) => prev.map((x) => x.id === r.id ? { ...x, visa_status: status } : x));
+              }
+            }}
+          >
+            <SelectTrigger className="h-7 w-36 text-xs bg-slate-700/50 border-slate-600 text-slate-300">
+              <SelectValue placeholder="Set status" />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.entries(VISA_LABELS) as [VisaStatus, string][]).map(([val, label]) => (
+                <SelectItem key={val} value={val}>{label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      },
+      size: 152,
+    }),
+    columnHelper.display({
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const r = row.original;
+        return (
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300 h-auto p-0 flex items-center gap-1 text-xs" onClick={() => openEdit(r)}>
+              <Pencil size={13} /> Edit
+            </Button>
+            <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1 text-xs" onClick={() => setDeletingRow(r)}>
+              <Trash2 size={13} /> Delete
+            </Button>
+          </div>
+        );
+      },
+      size: 100,
+    }),
+  ], []);
+
+  const table = useReactTable({
+    data: filtered,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      columnPinning: { left: ["num", "name", "nationality", "passport_number"] },
+      pagination: { pageSize: PER_PAGE, pageIndex: 0 },
+    },
+  });
+
+  // Reset to first page on search change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { table.setPageIndex(0); }, [search]);
+
+  const { pageIndex } = table.getState().pagination;
+  const pageCount = Math.max(1, table.getPageCount());
+  const total = filtered.length;
+  const from = total === 0 ? 0 : pageIndex * PER_PAGE + 1;
+  const to = Math.min((pageIndex + 1) * PER_PAGE, total);
 
   return (
     <main className="px-6 py-12">
@@ -269,18 +430,18 @@ export function StudentListPanel() {
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-            <Button onClick={openAdd} className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2">
-              <Plus size={16} /> Add Student
-            </Button>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search name, nationality, passport, phone..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="pl-9 bg-slate-700/50 border-slate-600 text-slate-200 placeholder:text-slate-500"
-              />
-            </div>
+              <Button onClick={openAdd} className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2">
+                <Plus size={16} /> Add Student
+              </Button>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search name, nationality, passport, phone..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 bg-slate-700/50 border-slate-600 text-slate-200 placeholder:text-slate-500"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -294,126 +455,59 @@ export function StudentListPanel() {
             <p className="text-center text-slate-400 py-16">No enrolled students yet.</p>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-slate-700">
-                      <TableHead className="text-slate-300 w-10">#</TableHead>
-                      <TableHead className="text-slate-300">Student Name</TableHead>
-                      <TableHead className="text-slate-300">Nationality</TableHead>
-                      <TableHead className="text-slate-300">Passport No.</TableHead>
-                      <TableHead className="text-slate-300">Phone</TableHead>
-                      <TableHead className="text-slate-300">Duration</TableHead>
-                      <TableHead className="text-slate-300">Course / Level</TableHead>
-                      <TableHead className="text-slate-300">Visa Change Date</TableHead>
-                      <TableHead className="text-slate-300">Visa Last Date</TableHead>
-                      <TableHead className="text-slate-300">Visa Status</TableHead>
-                      <TableHead className="text-slate-300">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paged.map((row) => (
-                      <TableRow key={row.id} className="border-slate-700 hover:bg-slate-700/30 transition-colors">
-                        <TableCell className="text-slate-500 text-xs">{row.num}</TableCell>
-                        <TableCell className="font-medium text-white">
-                          <Popover>
-                            <PopoverTrigger className="text-white font-medium hover:text-blue-400 hover:underline transition-colors text-left">
-                              {row.name}
-                            </PopoverTrigger>
-                            <PopoverContent className="w-72 p-0 bg-slate-800 border-slate-700 text-slate-200" side="right" align="start">
-                              <div className="px-4 py-3 border-b border-slate-700">
-                                <p className="font-semibold text-white text-sm">{row.name}</p>
-                                <p className="text-xs text-slate-400 mt-0.5 capitalize">{row.source === "student" ? "Registered Student" : "Enrolled via Application"}</p>
-                              </div>
-                              <div className="px-4 py-3 space-y-2 text-sm">
-                                {[
-                                  ["Nationality",       row.nationality],
-                                  ["Passport No.",      row.passport_number],
-                                  ["Phone",             row.phone],
-                                  ["Duration",          row.duration_months ? `${row.duration_months} months` : null],
-                                  ["Course / Level",    row.course_level],
-                                  ["Enrolled Date",     formatDate(row.enrolled_date)],
-                                  ["Visa Change Date",  row.visa_change_date ? formatDate(row.visa_change_date) : null],
-                                  ["Visa Last Date",    row.visa_last_date ? formatDate(row.visa_last_date) : null],
-                                  ["Visa Status",       row.visa_status ? VISA_LABELS[row.visa_status] : null],
-                                ].map(([label, value]) => (
-                                  <div key={label} className="flex justify-between gap-4">
-                                    <span className="text-slate-400 shrink-0">{label}</span>
-                                    <span className="text-slate-200 text-right">{value ?? "—"}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        </TableCell>
-                        <TableCell className="text-slate-300">{row.nationality ?? "—"}</TableCell>
-                        <TableCell className="text-slate-300 font-mono text-xs">{row.passport_number ?? "—"}</TableCell>
-                        <TableCell className="text-slate-300">{row.phone ?? "—"}</TableCell>
-                        <TableCell className="text-slate-300">{row.duration_months ? `${row.duration_months} mo.` : "—"}</TableCell>
-                        <TableCell className="text-slate-300 capitalize">{row.course_level ?? "—"}</TableCell>
-                        <TableCell className="text-slate-300">{row.visa_change_date ? formatDate(row.visa_change_date) : "—"}</TableCell>
-                        <TableCell className="text-slate-300">{row.visa_last_date ? formatDate(row.visa_last_date) : "—"}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={row.visa_status ?? ""}
-                            onValueChange={async (val) => {
-                              const status = val as VisaStatus;
-                              const res = row.source === "student"
-                                ? await updateStudent(row.id, { visa_status: status })
-                                : await updateApplication(row.id, { visa_status: status });
-                              if (res.success) {
-                                setRows((prev) =>
-                                  prev.map((r) => r.id === row.id ? { ...r, visa_status: status } : r)
-                                );
-                              }
-                            }}
+              <div className="overflow-x-auto rounded-lg border border-slate-700/50">
+                <table className="w-full table-fixed border-collapse text-sm" style={{ minWidth: "1320px" }}>
+                  <thead>
+                    {table.getHeaderGroups().map((hg) => (
+                      <tr key={hg.id} className="border-b border-slate-700">
+                        {hg.headers.map((header) => (
+                          <th
+                            key={header.id}
+                            style={{ width: header.getSize(), ...getPinStyle(header.column, true) }}
+                            className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wide whitespace-nowrap bg-slate-800/80"
                           >
-                            <SelectTrigger className="h-7 w-36 text-xs bg-slate-700/50 border-slate-600 text-slate-300">
-                              <SelectValue placeholder="Set status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(Object.entries(VISA_LABELS) as [VisaStatus, string][]).map(([val, label]) => (
-                                <SelectItem key={val} value={val}>{label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-blue-400 hover:text-blue-300 h-auto p-0 flex items-center gap-1 text-xs"
-                              onClick={() => openEdit(row)}
-                            >
-                              <Pencil size={13} /> Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1 text-xs"
-                              onClick={() => setDeletingRow(row)}
-                            >
-                              <Trash2 size={13} /> Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </th>
+                        ))}
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </thead>
+                  <tbody>
+                    {table.getRowModel().rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={columns.length} className="text-center py-12 text-slate-400">
+                          No results found.
+                        </td>
+                      </tr>
+                    ) : (
+                      table.getRowModel().rows.map((row) => (
+                        <tr key={row.id} className="border-b border-slate-700/60 hover:bg-slate-700/20 transition-colors">
+                          {row.getVisibleCells().map((cell) => (
+                            <td
+                              key={cell.id}
+                              style={{ width: cell.column.getSize(), ...getPinStyle(cell.column) }}
+                              className="px-4 py-3 align-middle"
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
 
               <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
                 <p className="text-sm text-slate-400">
-                  Showing {Math.min((page - 1) * PER_PAGE + 1, filtered.length)}–{Math.min(page * PER_PAGE, filtered.length)} of {filtered.length}
+                  {total > 0 ? `Showing ${from}–${to} of ${total}` : "No results"}
                 </p>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white disabled:opacity-30" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                  <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white disabled:opacity-30" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
                     <ChevronLeft size={16} /> Prev
                   </Button>
-                  <span className="text-sm text-slate-400 px-2">{page} / {totalPages}</span>
-                  <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white disabled:opacity-30" disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>
+                  <span className="text-sm text-slate-400 px-2">{pageIndex + 1} / {pageCount}</span>
+                  <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white disabled:opacity-30" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
                     Next <ChevronRight size={16} />
                   </Button>
                 </div>
@@ -423,7 +517,7 @@ export function StudentListPanel() {
         </CardContent>
       </Card>
 
-      {/* Edit Student Sheet */}
+      {/* ── Edit Student Sheet ── */}
       <Sheet open={!!editingRow} onOpenChange={(o) => !o && setEditingRow(null)}>
         <SheetContent side="right" className="sm:max-w-md flex flex-col">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
@@ -445,7 +539,7 @@ export function StudentListPanel() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Duration (months)</label>
-              <Input className="w-full" type="number" min={1} placeholder="e.g. 12" value={editForm.duration_months} onChange={(e) => setEditForm((f) => ({ ...f, duration_months: e.target.value }))} />
+              <NumberStepper value={Number(editForm.duration_months) || 1} min={1} onChange={(v) => setEditForm((f) => ({ ...f, duration_months: String(v) }))} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Status</label>
@@ -460,15 +554,13 @@ export function StudentListPanel() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Change Date</label>
-              <Input className="w-full" type="date" value={editForm.visa_change_date} onChange={(e) => setEditForm((f) => ({ ...f, visa_change_date: e.target.value }))} />
+              <DatePicker value={editForm.visa_change_date} onChange={(v) => setEditForm((f) => ({ ...f, visa_change_date: v }))} placeholder="Select visa change date" />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Last Date</label>
-              <Input className="w-full" type="date" value={editForm.visa_last_date} onChange={(e) => setEditForm((f) => ({ ...f, visa_last_date: e.target.value }))} />
+              <DatePicker value={editForm.visa_last_date} onChange={(v) => setEditForm((f) => ({ ...f, visa_last_date: v }))} placeholder="Select visa last date" />
             </div>
-            {saveError && (
-              <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{saveError}</p>
-            )}
+            {saveError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{saveError}</p>}
           </div>
           <SheetFooter className="px-6 py-4 border-t border-border">
             <Button onClick={handleSave} disabled={saving} className="w-full bg-brand-600 hover:bg-brand-700">
@@ -478,14 +570,12 @@ export function StudentListPanel() {
         </SheetContent>
       </Sheet>
 
-      {/* Delete Confirm Dialog */}
+      {/* ── Delete Confirm Dialog ── */}
       <Dialog open={!!deletingRow} onOpenChange={(o) => !o && setDeletingRow(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Remove Student</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Remove Student</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Remove <span className="font-semibold text-foreground">{deletingRow?.name}</span> from the student list? This cannot be undone.
+            Remove <span className="font-semibold text-foreground">{deletingRow?.name}</span>? This cannot be undone.
           </p>
           <DialogFooter>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
@@ -525,7 +615,7 @@ export function StudentListPanel() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Duration (months)</label>
-              <Input className="w-full" type="number" min={1} placeholder="e.g. 12" value={addForm.duration_months} onChange={(e) => setAddForm((f) => ({ ...f, duration_months: e.target.value }))} />
+              <NumberStepper value={Number(addForm.duration_months) || 1} min={1} onChange={(v) => setAddForm((f) => ({ ...f, duration_months: String(v) }))} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Course</label>
@@ -551,15 +641,13 @@ export function StudentListPanel() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Change Date</label>
-              <Input className="w-full" type="date" value={addForm.visa_change_date} onChange={(e) => setAddForm((f) => ({ ...f, visa_change_date: e.target.value }))} />
+              <DatePicker value={addForm.visa_change_date} onChange={(v) => setAddForm((f) => ({ ...f, visa_change_date: v }))} placeholder="Select visa change date" />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Last Date</label>
-              <Input className="w-full" type="date" value={addForm.visa_last_date} onChange={(e) => setAddForm((f) => ({ ...f, visa_last_date: e.target.value }))} />
+              <DatePicker value={addForm.visa_last_date} onChange={(v) => setAddForm((f) => ({ ...f, visa_last_date: v }))} placeholder="Select visa last date" />
             </div>
-            {addError && (
-              <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{addError}</p>
-            )}
+            {addError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{addError}</p>}
           </div>
           <SheetFooter className="px-6 py-4 border-t border-border">
             <Button onClick={handleAdd} disabled={adding || !addForm.name || !addForm.email} className="w-full bg-brand-600 hover:bg-brand-700">

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import * as dialog from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import * as select from "@/components/ui/select";
 import * as sheet from "@/components/ui/sheet";
 import * as table from "@/components/ui/table";
@@ -605,18 +606,18 @@ function CourseFormFields({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 gap-4">
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Max Students</label>
-          <Input type="number" min={1} {...field("max_students")} />
+          <NumberStepper value={form.max_students} min={1} onChange={(v) => setForm((p) => ({ ...p, max_students: v }))} />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Duration (weeks)</label>
-          <Input type="number" min={1} {...field("duration_weeks")} />
+          <NumberStepper value={form.duration_weeks} min={1} onChange={(v) => setForm((p) => ({ ...p, duration_weeks: v }))} />
         </div>
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Tuition Fees (THB)</label>
-          <Input type="number" min={0} step="0.01" {...field("price")} />
+          <NumberStepper value={form.price} min={0} step={100} onChange={(v) => setForm((p) => ({ ...p, price: v }))} />
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -554,33 +555,31 @@ function ServiceFormFields({
         <Input placeholder="e.g. Student ID Card" {...strField("name")} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Price Display *</label>
-          <Input placeholder="e.g. 300 THB" {...strField("price_display")} />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Price (THB)</label>
-          <Input type="number" min={0} {...numField("price_thb")} />
-        </div>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Price Display *</label>
+        <Input className="w-full" placeholder="e.g. 300 THB" {...strField("price_display")} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Category</label>
-          <Select value={form.category}
-            onValueChange={(v) => setForm((p) => ({ ...p, category: v as "document" | "copy" }))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="document">Document</SelectItem>
-              <SelectItem value="copy">Copy / Scan</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Sort Order</label>
-          <Input type="number" min={0} {...numField("sort_order")} />
-        </div>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Price (THB)</label>
+        <NumberStepper value={form.price_thb} min={0} step={50} onChange={(v) => setForm((p) => ({ ...p, price_thb: v }))} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Category</label>
+        <Select value={form.category}
+          onValueChange={(v) => setForm((p) => ({ ...p, category: v as "document" | "copy" }))}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="document">Document</SelectItem>
+            <SelectItem value="copy">Copy / Scan</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Sort Order</label>
+        <NumberStepper value={form.sort_order} min={0} onChange={(v) => setForm((p) => ({ ...p, sort_order: v }))} />
       </div>
 
       <div className="space-y-1.5">
