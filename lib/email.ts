@@ -22,7 +22,11 @@ export async function sendAdminServiceRequestNotification(req: {
 }) {
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail || !process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.warn("Email not configured — skipping service request notification.");
+    console.warn("[email] Service request: missing env vars →", {
+      ADMIN_EMAIL: !!adminEmail,
+      GMAIL_USER: !!process.env.GMAIL_USER,
+      GMAIL_APP_PASSWORD: !!process.env.GMAIL_APP_PASSWORD,
+    });
     return;
   }
   await transporter.sendMail({
@@ -60,7 +64,11 @@ export async function sendAdminApplicationNotification(application: {
 }) {
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail || !process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.warn("Email not configured — skipping admin notification.");
+    console.warn("[email] Application: missing env vars →", {
+      ADMIN_EMAIL: !!adminEmail,
+      GMAIL_USER: !!process.env.GMAIL_USER,
+      GMAIL_APP_PASSWORD: !!process.env.GMAIL_APP_PASSWORD,
+    });
     return;
   }
 
