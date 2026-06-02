@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { sendAdminApplicationNotification } from "@/lib/email";
+import { sendAdminApplicationNotification, sendAdminServiceRequestNotification } from "@/lib/email";
 
 // ============ APPLICATIONS ============
 
@@ -386,6 +386,8 @@ export async function createServiceRequest(data: {
   name: string;
   email: string;
   phone?: string;
+  nationality?: string;
+  passport_number?: string;
   student_id?: string;
   quantity: number;
   notes?: string;
@@ -399,6 +401,17 @@ export async function createServiceRequest(data: {
       .select()
       .single();
     if (error) throw error;
+    sendAdminServiceRequestNotification({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      nationality: data.nationality,
+      passport_number: data.passport_number,
+      service_name: data.service_name,
+      quantity: data.quantity,
+      notes: data.notes,
+      price_thb: data.price_thb,
+    }).catch((err) => console.error("Service request email failed:", err));
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to create service request" };

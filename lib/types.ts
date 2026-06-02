@@ -102,6 +102,8 @@ export type ServiceRequest = {
   name: string;
   email: string;
   phone: string | null;
+  nationality: string | null;
+  passport_number: string | null;
   student_id: string | null;
   quantity: number;
   notes: string | null;

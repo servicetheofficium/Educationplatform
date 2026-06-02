@@ -9,6 +9,49 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+export async function sendAdminServiceRequestNotification(req: {
+  name: string;
+  email: string;
+  phone?: string;
+  nationality?: string;
+  passport_number?: string;
+  service_name: string;
+  quantity: number;
+  notes?: string;
+  price_thb: number;
+}) {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail || !process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.warn("Email not configured — skipping service request notification.");
+    return;
+  }
+  await transporter.sendMail({
+    from: `"KNC School" <${process.env.GMAIL_USER}>`,
+    to: adminEmail,
+    subject: `New Service Request — ${req.service_name} from ${req.name}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px">
+        <h2 style="margin:0 0 16px;color:#1a1a1a">New Service Request</h2>
+        <p style="color:#555;margin:0 0 20px">A new service request has been submitted on the KNC School website.</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <tr><td style="padding:6px 0;color:#555;width:130px">Name</td><td style="padding:6px 0;font-weight:500">${req.name}</td></tr>
+          <tr><td style="padding:6px 0;color:#555">Email</td><td style="padding:6px 0;font-weight:500"><a href="mailto:${req.email}">${req.email}</a></td></tr>
+          <tr><td style="padding:6px 0;color:#555">Phone</td><td style="padding:6px 0;font-weight:500">${req.phone || "—"}</td></tr>
+          <tr><td style="padding:6px 0;color:#555">Nationality</td><td style="padding:6px 0;font-weight:500">${req.nationality || "—"}</td></tr>
+          <tr><td style="padding:6px 0;color:#555">Passport No.</td><td style="padding:6px 0;font-weight:500">${req.passport_number || "—"}</td></tr>
+          <tr><td style="padding:6px 0;color:#555">Service</td><td style="padding:6px 0;font-weight:500">${req.service_name}</td></tr>
+          <tr><td style="padding:6px 0;color:#555">Quantity</td><td style="padding:6px 0;font-weight:500">${req.quantity}</td></tr>
+          <tr><td style="padding:6px 0;color:#555">Total</td><td style="padding:6px 0;font-weight:600;color:#ea580c">฿${(req.price_thb * req.quantity).toLocaleString()}</td></tr>
+          <tr><td style="padding:6px 0;color:#555;vertical-align:top">Notes</td><td style="padding:6px 0">${req.notes || "—"}</td></tr>
+        </table>
+        <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb">
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL ?? ""}/admin" style="background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px">View in Admin Dashboard</a>
+        </div>
+      </div>
+    `,
+  });
+}
+
 export async function sendAdminApplicationNotification(application: {
   name: string;
   email: string;

@@ -9,7 +9,7 @@ import {
   flexRender,
   type Column,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Users, Pencil, Trash2, Search, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Pencil, Trash2, Search, Plus, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/ui/number-stepper";
@@ -243,6 +243,42 @@ export function StudentListPanel() {
     setDeleting(false);
   }
 
+  function exportCSV(data: Row[]) {
+    const headers = [
+      "#", "Student Name", "Nationality", "Passport No.", "Phone",
+      "Duration (mo.)", "Course / Level", "Visa Change Date", "Visa Last Date", "Visa Status", "Enrolled Date",
+    ];
+    const escape = (v: string | null | undefined) => {
+      if (v == null) return "";
+      const s = String(v);
+      return s.includes(",") || s.includes('"') || s.includes("\n")
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csvRows = [
+      headers.join(","),
+      ...data.map((r) => [
+        r.num,
+        escape(r.name),
+        escape(r.nationality),
+        escape(r.passport_number),
+        escape(r.phone),
+        r.duration_months ?? "",
+        escape(r.course_level),
+        r.visa_change_date ? formatDate(r.visa_change_date) : "",
+        r.visa_last_date ? formatDate(r.visa_last_date) : "",
+        r.visa_status ? VISA_LABELS[r.visa_status] : "",
+        formatDate(r.enrolled_date),
+      ].join(",")),
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `students_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     if (!q) return rows;
@@ -432,6 +468,12 @@ export function StudentListPanel() {
             <div className="flex items-center gap-3 flex-wrap">
               <Button onClick={openAdd} className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2">
                 <Plus size={16} /> Add Student
+              </Button>
+              <Button
+                onClick={() => exportCSV(filtered)}
+                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600"
+              >
+                <Download size={16} /> Export CSV
               </Button>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

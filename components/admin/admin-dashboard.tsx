@@ -355,16 +355,34 @@ export function AdminDashboard({
                   </p>
                 </div>
               </div>
-              <Button
-                className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2"
-                onClick={() => {
-                  setCourseForm(EMPTY_FORM);
-                  setCreateOpen(true);
-                }}
-              >
-                <lucideReact.Plus size={16} />
-                Add Course
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  className="bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 flex items-center gap-2"
+                  onClick={() => {
+                    const headers = ["Course Name","Language","Level","Max Students","Duration (weeks)","Tuition Fees"];
+                    const escape = (v: string | number) => { const s = String(v); return s.includes(",") || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s; };
+                    const rows = [headers.join(","), ...localCourses.map((c) => [escape(c.name),escape(c.language),escape(c.level),c.max_students,c.duration_weeks,c.price].join(","))];
+                    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = `courses_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <lucideReact.Download size={16} />
+                  Export CSV
+                </Button>
+                <Button
+                  className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2"
+                  onClick={() => {
+                    setCourseForm(EMPTY_FORM);
+                    setCreateOpen(true);
+                  }}
+                >
+                  <lucideReact.Plus size={16} />
+                  Add Course
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="px-8 pb-8">
               {localCourses.length === 0 ? (
@@ -442,9 +460,8 @@ export function AdminDashboard({
                   </p>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="ghost"
                       size="sm"
-                      className="text-slate-300 hover:text-white disabled:opacity-30"
+                      className="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white disabled:opacity-30 flex items-center gap-1"
                       disabled={coursePage === 1}
                       onClick={() => setCoursePage((p) => p - 1)}
                     >
@@ -455,9 +472,8 @@ export function AdminDashboard({
                       {coursePage} / {totalCoursePages}
                     </span>
                     <Button
-                      variant="ghost"
                       size="sm"
-                      className="text-slate-300 hover:text-white disabled:opacity-30"
+                      className="bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white disabled:opacity-30 flex items-center gap-1"
                       disabled={coursePage === totalCoursePages}
                       onClick={() => setCoursePage((p) => p + 1)}
                     >

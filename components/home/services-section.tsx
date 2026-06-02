@@ -6,8 +6,11 @@ import {
   FileText, Zap, Clock, CreditCard, Camera, Building2, Smartphone,
   BookOpen, Copy, AlertCircle, HelpCircle,
 } from "lucide-react";
+import { useState } from "react";
 import type { ElementType } from "react";
 import { useDocumentServices } from "@/lib/hooks";
+import { ServiceRequestDialog } from "./service-request-dialog";
+import type { DocumentService } from "@/lib/types";
 
 const ICON_MAP: Record<string, ElementType> = {
   FileText, Zap, Clock, CreditCard, Camera, Building2, Smartphone,
@@ -20,6 +23,7 @@ function resolveIcon(name: string | null): ElementType {
 
 export function ServicesSection() {
   const { services, loading } = useDocumentServices();
+  const [selectedService, setSelectedService] = useState<DocumentService | null>(null);
 
   const docServices = services.filter((s) => s.category === "document");
   const copyServices = services.filter((s) => s.category === "copy");
@@ -60,7 +64,10 @@ export function ServicesSection() {
                   transition={{ delay: i * 0.05 }}
                   className="h-full"
                 >
-                  <Card className="h-full rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-white">
+                  <Card
+                    className="h-full rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-brand-300 transition-all bg-white cursor-pointer group"
+                    onClick={() => setSelectedService(service)}
+                  >
                     <CardContent className="p-6 flex flex-col h-full">
                       <div className="flex items-center justify-between gap-3 mb-4">
                         <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center text-brand-600 shrink-0">
@@ -160,6 +167,11 @@ export function ServicesSection() {
           </Card>
         </motion.div>
       </div>
+
+      <ServiceRequestDialog
+        service={selectedService}
+        onClose={() => setSelectedService(null)}
+      />
     </section>
   );
 }
