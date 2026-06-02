@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { sendAdminApplicationNotification, sendAdminServiceRequestNotification } from "@/lib/email";
 
@@ -18,13 +19,19 @@ export async function createApplication(data: {
 
     if (error) throw error;
 
-    // Send admin notification (non-blocking — don't fail the submission if email fails)
-    sendAdminApplicationNotification({
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      message: data.message,
-    }).catch((err) => console.error("Admin email notification failed:", err));
+    after(async () => {
+      try {
+        await sendAdminApplicationNotification({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          message: data.message,
+        });
+        console.log("[email] Application notification sent");
+      } catch (emailErr) {
+        console.error("[email] Application notification FAILED:", emailErr);
+      }
+    });
 
     return { success: true };
   } catch (error) {
@@ -401,18 +408,24 @@ export async function createServiceRequest(data: {
       .select()
       .single();
     if (error) throw error;
-    sendAdminServiceRequestNotification({
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      nationality: data.nationality,
-      passport_number: data.passport_number,
-      service_name: data.service_name,
-      quantity: data.quantity,
-      notes: data.notes,
-      price_thb: data.price_thb,
-    }).then(() => console.log("[email] Service request notification sent"))
-      .catch((err) => console.error("[email] Service request notification FAILED:", err));
+    after(async () => {
+      try {
+        await sendAdminServiceRequestNotification({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          nationality: data.nationality,
+          passport_number: data.passport_number,
+          service_name: data.service_name,
+          quantity: data.quantity,
+          notes: data.notes,
+          price_thb: data.price_thb,
+        });
+        console.log("[email] Service request notification sent");
+      } catch (emailErr) {
+        console.error("[email] Service request notification FAILED:", emailErr);
+      }
+    });
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to create service request" };
