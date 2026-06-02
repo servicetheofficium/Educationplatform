@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Wrench, ClipboardList,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/ui/number-stepper";
@@ -409,9 +410,35 @@ export function ServicesPanel() {
                     {pagRequests.map((req) => (
                       <TableRow key={req.id} className="border-slate-700/60 hover:bg-slate-700/20 transition-colors">
                         <TableCell>
-                          <p className="font-medium text-white text-sm">{req.name}</p>
-                          <p className="text-slate-500 text-xs">{req.email}</p>
-                          {req.phone && <p className="text-slate-500 text-xs">{req.phone}</p>}
+                          <Popover>
+                            <PopoverTrigger className="font-medium text-white text-sm hover:text-blue-400 hover:underline transition-colors text-left">
+                              {req.name}
+                            </PopoverTrigger>
+                            <PopoverContent className="w-72 p-0 bg-slate-800 border-slate-700 text-slate-200" side="right" align="start">
+                              <div className="px-4 py-3 border-b border-slate-700">
+                                <p className="font-semibold text-white text-sm">{req.name}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">Service Requester</p>
+                              </div>
+                              <div className="px-4 py-3 space-y-2 text-sm">
+                                {([
+                                  ["Email",        req.email],
+                                  ["Phone",        req.phone],
+                                  ["Nationality",  req.nationality],
+                                  ["Passport No.", req.passport_number],
+                                  ["Service",      req.service_name],
+                                  ["Quantity",     String(req.quantity)],
+                                  ["Total",        `฿${(req.price_thb * req.quantity).toLocaleString()}`],
+                                  ["Notes",        req.notes],
+                                ] as [string, string | null | undefined][]).map(([label, value]) => (
+                                  <div key={label} className="flex justify-between gap-4">
+                                    <span className="text-slate-400 shrink-0">{label}</span>
+                                    <span className="text-slate-200 text-right">{value || "—"}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                          <p className="text-slate-500 text-xs mt-0.5">{req.email}</p>
                         </TableCell>
                         <TableCell className="text-slate-300 text-sm max-w-[160px]">
                           <span className="line-clamp-2">{req.service_name}</span>

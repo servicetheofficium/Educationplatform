@@ -87,7 +87,7 @@ export function CourseCard({ course, onSeeDetails, index = 0 }: CourseCardProps)
             </div>
             {course.price > 0 && (
               <span className="ml-auto text-brand-600 font-bold text-sm">
-                ${course.price.toLocaleString()}
+                ฿{course.price.toLocaleString()}
               </span>
             )}
           </div>

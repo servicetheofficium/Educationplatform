@@ -411,7 +411,8 @@ export async function createServiceRequest(data: {
       quantity: data.quantity,
       notes: data.notes,
       price_thb: data.price_thb,
-    }).catch((err) => console.error("Service request email failed:", err));
+    }).then(() => console.log("[email] Service request notification sent"))
+      .catch((err) => console.error("[email] Service request notification FAILED:", err));
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to create service request" };
