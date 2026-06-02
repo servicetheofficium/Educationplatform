@@ -12,7 +12,7 @@ interface CoursesSectionProps {
 }
 
 const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&q=80&w=800";
+  "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=800";
 
 const CARD_WIDTH = 340;
 const CARD_GAP = 24;

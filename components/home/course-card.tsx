@@ -48,6 +48,7 @@ export function CourseCard({ course, onSeeDetails, index = 0 }: CourseCardProps)
             src={course.image}
             alt={course.name}
             fill
+            sizes="340px"
             className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
