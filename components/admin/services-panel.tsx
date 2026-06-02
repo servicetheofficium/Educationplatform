@@ -98,6 +98,7 @@ export function ServicesPanel() {
   const [deletingRequest, setDeletingRequest] = useState<ServiceRequest | null>(null);
   const [serviceForm, setServiceForm] = useState<ServiceForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     getDocumentServices().then((r) => {
@@ -122,6 +123,7 @@ export function ServicesPanel() {
 
   useEffect(() => {
     if (editingService) {
+      setSaveError(null);
       setServiceForm({
         name:            editingService.name,
         price_display:   editingService.price_display,
@@ -161,6 +163,7 @@ export function ServicesPanel() {
   const handleUpdate = async () => {
     if (!editingService) return;
     setSaving(true);
+    setSaveError(null);
     const res = await updateDocumentService(editingService.id, {
       ...serviceForm,
       detail:          serviceForm.detail || undefined,
@@ -174,6 +177,8 @@ export function ServicesPanel() {
           .sort((a, b) => a.sort_order - b.sort_order)
       );
       setEditingService(null);
+    } else {
+      setSaveError((res as { error?: string }).error ?? "Update failed. Check your permissions.");
     }
     setSaving(false);
   };
@@ -525,7 +530,10 @@ export function ServicesPanel() {
           <div className="flex-1 overflow-y-auto px-6 py-6">
             <ServiceFormFields form={serviceForm} setForm={setServiceForm} strField={strField} numField={numField} />
           </div>
-          <SheetFooter className="px-6 py-4 border-t border-border">
+          <SheetFooter className="px-6 py-4 border-t border-border flex flex-col gap-3">
+            {saveError && (
+              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2 w-full text-center">{saveError}</p>
+            )}
             <Button onClick={handleUpdate} disabled={saving || !serviceForm.name || !serviceForm.price_display}
               className="w-full bg-brand-600 hover:bg-brand-700">
               {saving ? "Saving..." : "Save Changes"}
@@ -583,13 +591,14 @@ function ServiceFormFields({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">Price Display *</label>
-        <Input className="w-full" placeholder="e.g. 300 THB" {...strField("price_display")} />
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium">Price (THB)</label>
-        <NumberStepper value={form.price_thb} min={0} step={50} onChange={(v) => setForm((p) => ({ ...p, price_thb: v }))} />
+        <label className="text-sm font-medium">Price (THB) *</label>
+        <NumberStepper
+          value={form.price_thb}
+          min={0}
+          step={50}
+          onChange={(v) => setForm((p) => ({ ...p, price_thb: v, price_display: `${v.toLocaleString()} THB` }))}
+        />
+        <p className="text-xs text-slate-500">Display label: <span className="font-medium">{form.price_display}</span></p>
       </div>
 
       <div className="space-y-1.5">
