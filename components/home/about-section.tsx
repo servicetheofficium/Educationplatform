@@ -66,16 +66,6 @@ export function AboutSection() {
                 </div>
               ))}
             </div>
-            <Button
-              variant="ghost"
-              className="text-brand-600 font-bold flex items-center gap-2 group border-b-2 border-transparent hover:border-brand-600 transition-all pb-1 px-0 h-auto rounded-none hover:bg-transparent"
-            >
-              Discover our history{" "}
-              <ArrowRight
-                size={20}
-                className="group-hover:translate-x-1 transition-transform"
-              />
-            </Button>
           </div>
         </div>
       </div>
