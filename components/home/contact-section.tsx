@@ -1,4 +1,5 @@
 import { MapPin, Phone, Clock } from "lucide-react";
+import Image from "next/image";
 import { CONTACT_INFO } from "@/lib/constants";
 import { ApplicationForm } from "@/components/application-form";
 
@@ -46,6 +47,17 @@ export function ContactSection() {
                   <p className="font-bold text-lg mb-1">Opening Hours</p>
                   <p className="text-slate-400">{CONTACT_INFO.hours}</p>
                 </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <p className="font-bold text-lg">LINE Official</p>
+                <Image
+                  src="/line-qr.png"
+                  alt="LINE QR Code"
+                  width={160}
+                  height={160}
+                  className="rounded-xl"
+                />
               </div>
             </div>
           </div>

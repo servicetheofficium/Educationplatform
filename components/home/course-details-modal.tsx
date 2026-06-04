@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { X, Clock, Users, BookOpen, Target, DollarSign } from "lucide-react";
+import { X, Clock, Users, BookOpen, Target } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,12 +76,6 @@ export function CourseDetailsModal({ course, onClose }: CourseDetailsModalProps)
                       <Users size={12} className="text-white/80" />
                       <span className="text-white text-xs font-medium">Max {course.max_students}</span>
                     </div>
-                    {course.price > 0 && (
-                      <div className="flex items-center gap-1.5 bg-brand-500/80 backdrop-blur-sm rounded-full px-3 py-1.5">
-                        <DollarSign size={12} className="text-white" />
-                        <span className="text-white text-xs font-bold">{course.price.toLocaleString()}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
