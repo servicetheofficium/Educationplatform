@@ -119,6 +119,7 @@ export const CONTACT_INFO = {
   socials: [
     { platform: "Facebook", url: "#" },
     { platform: "Instagram", url: "#" },
+    { platform: "Line", url: "#" },
     { platform: "TikTok", url: "#" },
   ],
 };

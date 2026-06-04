@@ -1,9 +1,17 @@
 import { Globe } from "lucide-react";
+import { FaFacebook, FaInstagram, FaLine, FaTiktok } from "react-icons/fa6";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { NAV_LINKS, SCHOOL_NAME, LOGO_URL, CONTACT_INFO } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+
+const SOCIAL_ICONS: Record<string, React.ReactNode> = {
+  Facebook: <FaFacebook size={18} />,
+  Instagram: <FaInstagram size={18} />,
+  Line: <FaLine size={18} />,
+  TikTok: <FaTiktok size={18} />,
+};
 
 export function Footer() {
   return (
@@ -32,7 +40,7 @@ export function Footer() {
                   className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all"
                 >
                   <span className="sr-only">{s.platform}</span>
-                  <Globe size={18} />
+                  {SOCIAL_ICONS[s.platform] ?? <Globe size={18} />}
                 </Link>
               ))}
             </div>
