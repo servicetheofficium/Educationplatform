@@ -85,11 +85,6 @@ export function CourseCard({ course, onSeeDetails, index = 0 }: CourseCardProps)
               <Users size={12} className="text-brand-500" />
               <span className="text-xs text-slate-500 font-medium">Max {course.max_students}</span>
             </div>
-            {course.price > 0 && (
-              <span className="ml-auto text-brand-600 font-bold text-sm">
-                ฿{course.price.toLocaleString()}
-              </span>
-            )}
           </div>
 
           <Button

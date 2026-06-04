@@ -25,10 +25,25 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Refreshes session and clears stale/invalid refresh tokens.
-  // Errors (e.g. refresh_token_not_found) are intentionally swallowed —
-  // the client will be unauthenticated, which is fine for public routes.
-  await supabase.auth.getUser().catch(() => null);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+
+  const { pathname } = request.nextUrl;
+  const isAdminRoute = pathname.startsWith("/admin");
+  const isLoginPage = pathname === "/admin/login";
+
+  if (isAdminRoute && !isLoginPage && !user) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/admin/login";
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (isLoginPage && user) {
+    const adminUrl = request.nextUrl.clone();
+    adminUrl.pathname = "/admin";
+    return NextResponse.redirect(adminUrl);
+  }
 
   return supabaseResponse;
 }
