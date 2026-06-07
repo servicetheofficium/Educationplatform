@@ -21,8 +21,8 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
     <Popover>
       <PopoverTrigger
         className={cn(
-          "w-full h-10 flex items-center justify-start gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
-          "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          "w-full h-10 flex items-center justify-start gap-2 rounded-lg border border-input bg-transparent dark:bg-input/30 px-3 text-sm",
+          "hover:border-ring transition-colors focus-visible:outline-none",
           !value && "text-muted-foreground",
           className
         )}
@@ -33,6 +33,9 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
       <PopoverContent className="w-[var(--anchor-width)] p-1 border" align="start">
         <Calendar
           mode="single"
+          captionLayout="dropdown"
+          startMonth={new Date(2015, 0)}
+          endMonth={new Date(2035, 11)}
           className="w-auto [--cell-size:auto]"
           selected={selected}
           onSelect={(date) => onChange(date ? format(date, "yyyy-MM-dd") : "")}
