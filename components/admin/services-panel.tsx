@@ -63,17 +63,17 @@ function PaginationBar({ page, totalPages, total, perPage, onPrev, onNext }: {
   onPrev: () => void; onNext: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
-      <p className="text-sm text-slate-400">
+    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
         Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} of {total}
       </p>
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white disabled:opacity-30"
+        <Button variant="ghost" size="sm" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30"
           disabled={page === 1} onClick={onPrev}>
           <ChevronLeft size={16} /> Prev
         </Button>
-        <span className="text-sm text-slate-400 px-2">{page} / {totalPages}</span>
-        <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white disabled:opacity-30"
+        <span className="text-sm text-slate-500 dark:text-slate-400 px-2">{page} / {totalPages}</span>
+        <Button variant="ghost" size="sm" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30"
           disabled={page === totalPages} onClick={onNext}>
           Next <ChevronRight size={16} />
         </Button>
@@ -107,15 +107,22 @@ function exportCompletedCsv(rows: ServiceRequest[]) {
   URL.revokeObjectURL(url);
 }
 
-export function ServicesPanel() {
+export function ServicesPanel({
+  initialServices,
+  initialRequests,
+}: {
+  initialServices?: DocumentService[];
+  initialRequests?: ServiceRequest[];
+} = {}) {
+  const hasInitial = initialServices !== undefined;
   const [tab, setTab] = useState<Tab>("catalog");
 
-  const [services, setServices] = useState<DocumentService[]>([]);
-  const [servicesLoading, setServicesLoading] = useState(true);
+  const [services, setServices] = useState<DocumentService[]>(initialServices ?? []);
+  const [servicesLoading, setServicesLoading] = useState(!hasInitial);
   const [servicePage, setServicePage] = useState(1);
 
-  const [requests, setRequests] = useState<ServiceRequest[]>([]);
-  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [requests, setRequests] = useState<ServiceRequest[]>(initialRequests ?? []);
+  const [requestsLoading, setRequestsLoading] = useState(!hasInitial);
   const [requestPage, setRequestPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
   const [cancelledPage, setCancelledPage] = useState(1);
@@ -129,15 +136,14 @@ export function ServicesPanel() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    getDocumentServices().then((r) => {
-      if (r.success) setServices(r.data as DocumentService[]);
+    if (hasInitial) return;
+    Promise.all([getDocumentServices(), getServiceRequests()]).then(([svc, req]) => {
+      if (svc.success) setServices(svc.data as DocumentService[]);
+      if (req.success) setRequests(req.data as ServiceRequest[]);
       setServicesLoading(false);
-    });
-    getServiceRequests().then((r) => {
-      if (r.success) setRequests(r.data as ServiceRequest[]);
       setRequestsLoading(false);
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const max = Math.max(1, Math.ceil(services.length / PER_PAGE));
@@ -277,8 +283,8 @@ export function ServicesPanel() {
             <Wrench size={22} className="text-orange-400" />
           </div>
           <div>
-            <h2 className="text-2xl font-display font-bold text-white">Document &amp; Support Services</h2>
-            <p className="text-slate-400 text-sm mt-0.5">Manage service catalog and incoming requests</p>
+            <h2 className="text-2xl font-display font-bold text-slate-900 dark:text-white">Document &amp; Support Services</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Manage service catalog and incoming requests</p>
           </div>
         </div>
         {tab === "catalog" && (
@@ -290,7 +296,7 @@ export function ServicesPanel() {
       </div>
 
       {/* ── Tab buttons ── */}
-      <div className="flex gap-1 mb-6 bg-slate-800/60 p-1 rounded-xl w-fit border border-slate-700/60">
+      <div className="flex gap-1 mb-6 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl w-fit border border-slate-200 dark:border-slate-700/60">
         {TABS.map(({ id, label, icon: Icon, count }) => (
           <button
             key={id}
@@ -298,7 +304,7 @@ export function ServicesPanel() {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === id
                 ? "bg-brand-600 text-white shadow-md"
-                : "text-slate-400 hover:text-white hover:bg-slate-700/60"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/80 dark:hover:bg-slate-700/60"
             }`}
           >
             <Icon size={15} />
@@ -322,12 +328,12 @@ export function ServicesPanel() {
 
       {/* ── Catalog Tab ── */}
       {tab === "catalog" && (
-        <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50">
-          <CardHeader className="px-8 pt-6 pb-4 border-b border-slate-700/50">
+        <Card className="bg-white dark:bg-slate-800/50 backdrop-blur-md border-slate-200 dark:border-slate-700/50">
+          <CardHeader className="px-8 pt-6 pb-4 border-b border-slate-200 dark:border-slate-700/50">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-white font-semibold">
+              <CardTitle className="text-lg text-slate-900 dark:text-white font-semibold">
                 All Services
-                <span className="ml-2 text-slate-400 font-normal text-base">({services.length})</span>
+                <span className="ml-2 text-slate-500 dark:text-slate-400 font-normal text-base">({services.length})</span>
               </CardTitle>
               <div className="flex gap-2">
                 <Badge className="bg-blue-500/15 text-blue-300 border-0">
@@ -344,35 +350,36 @@ export function ServicesPanel() {
           </CardHeader>
           <CardContent className="px-8 pb-8 pt-6">
             {servicesLoading ? (
-              <p className="text-slate-400 py-16 text-center text-sm">Loading services...</p>
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">Loading services...</p>
             ) : services.length === 0 ? (
-              <p className="text-slate-400 py-16 text-center text-sm">No services yet. Add one above.</p>
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">No services yet. Add one above.</p>
             ) : (
               <>
+                <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-slate-700 hover:bg-transparent">
-                      <TableHead className="text-slate-400 font-medium">#</TableHead>
-                      <TableHead className="text-slate-400 font-medium">Name</TableHead>
-                      <TableHead className="text-slate-400 font-medium">Price</TableHead>
-                      <TableHead className="text-slate-400 font-medium">Detail</TableHead>
-                      <TableHead className="text-slate-400 font-medium">Category</TableHead>
-                      <TableHead className="text-slate-400 font-medium">Processing Time</TableHead>
-                      <TableHead className="text-slate-400 font-medium">Status</TableHead>
-                      <TableHead className="text-slate-400 font-medium w-24">Actions</TableHead>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Detail</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Processing Time</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-24">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pagServices.map((svc, i) => (
-                      <TableRow key={svc.id} className="border-slate-700/60 hover:bg-slate-700/20 transition-colors">
-                        <TableCell className="text-slate-500 text-xs">
+                      <TableRow key={svc.id}>
+                        <TableCell className="text-slate-400 dark:text-slate-500 text-xs">
                           {(servicePage - 1) * PER_PAGE + i + 1}
                         </TableCell>
-                        <TableCell className="font-medium text-white">{svc.name}</TableCell>
+                        <TableCell className="font-medium text-slate-900 dark:text-white">{svc.name}</TableCell>
                         <TableCell>
                           <span className="text-brand-400 font-semibold">{svc.price_display}</span>
                         </TableCell>
-                        <TableCell className="text-slate-400 text-sm max-w-[140px] truncate">
+                        <TableCell className="text-slate-500 dark:text-slate-400 text-sm max-w-[140px] truncate">
                           {svc.detail ?? <span className="text-slate-600">—</span>}
                         </TableCell>
                         <TableCell>
@@ -382,7 +389,7 @@ export function ServicesPanel() {
                             {svc.category}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-slate-400 text-sm">
+                        <TableCell className="text-slate-500 dark:text-slate-400 text-sm">
                           {svc.processing_time ?? <span className="text-slate-600">—</span>}
                         </TableCell>
                         <TableCell>
@@ -408,6 +415,7 @@ export function ServicesPanel() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
                 {services.length > PER_PAGE && (
                   <PaginationBar page={servicePage} totalPages={Math.ceil(services.length / PER_PAGE)}
                     total={services.length} perPage={PER_PAGE}
@@ -421,12 +429,12 @@ export function ServicesPanel() {
 
       {/* ── Requests Tab (active: pending + processing) ── */}
       {tab === "requests" && (
-        <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50">
-          <CardHeader className="px-8 pt-6 pb-4 border-b border-slate-700/50">
+        <Card className="bg-white dark:bg-slate-800/50 backdrop-blur-md border-slate-200 dark:border-slate-700/50">
+          <CardHeader className="px-8 pt-6 pb-4 border-b border-slate-200 dark:border-slate-700/50">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-white font-semibold">
+              <CardTitle className="text-lg text-slate-900 dark:text-white font-semibold">
                 Active Requests
-                <span className="ml-2 text-slate-400 font-normal text-base">({activeRequests.length})</span>
+                <span className="ml-2 text-slate-500 dark:text-slate-400 font-normal text-base">({activeRequests.length})</span>
               </CardTitle>
               <div className="flex gap-2">
                 {(["pending", "processing"] as ServiceRequestStatus[]).map((s) => {
@@ -439,9 +447,9 @@ export function ServicesPanel() {
           </CardHeader>
           <CardContent className="px-8 pb-8 pt-6">
             {requestsLoading ? (
-              <p className="text-slate-400 py-16 text-center text-sm">Loading requests...</p>
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">Loading requests...</p>
             ) : activeRequests.length === 0 ? (
-              <p className="text-slate-400 py-16 text-center text-sm">No active requests.</p>
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">No active requests.</p>
             ) : (
               <>
                 <RequestsTable rows={pagRequests} onStatusChange={handleRequestStatus} onDelete={setDeletingRequest} />
@@ -458,10 +466,10 @@ export function ServicesPanel() {
 
       {/* ── Completed Tab ── */}
       {tab === "completed" && (
-        <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50">
-          <CardHeader className="px-8 pt-6 pb-4 border-b border-slate-700/50">
+        <Card className="bg-white dark:bg-slate-800/50 backdrop-blur-md border-slate-200 dark:border-slate-700/50">
+          <CardHeader className="px-8 pt-6 pb-4 border-b border-slate-200 dark:border-slate-700/50">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-white font-semibold flex items-center gap-2">
+              <CardTitle className="text-lg text-slate-900 dark:text-white font-semibold flex items-center gap-2">
                 <CheckCircle2 size={18} className="text-green-400" />
                 Completed Services
                 <span className="text-slate-400 font-normal text-base">({completedRequests.length})</span>
@@ -472,7 +480,7 @@ export function ServicesPanel() {
                 </Badge>
                 {completedRequests.length > 0 && (
                   <Button
-                    className="bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 flex items-center gap-2"
+                    className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 flex items-center gap-2"
                     onClick={() => exportCompletedCsv(completedRequests)}>
                     <Download size={16} /> Export CSV
                   </Button>
@@ -482,9 +490,9 @@ export function ServicesPanel() {
           </CardHeader>
           <CardContent className="px-8 pb-8 pt-6">
             {requestsLoading ? (
-              <p className="text-slate-400 py-16 text-center text-sm">Loading...</p>
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">Loading...</p>
             ) : completedRequests.length === 0 ? (
-              <p className="text-slate-400 py-16 text-center text-sm">No completed services yet.</p>
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">No completed services yet.</p>
             ) : (
               <>
                 <RequestsTable rows={pagCompleted} onStatusChange={handleRequestStatus} onDelete={setDeletingRequest} dateLabel="Completed On" dateField="updated_at" />
@@ -501,10 +509,10 @@ export function ServicesPanel() {
 
       {/* ── Cancelled Tab ── */}
       {tab === "cancelled" && (
-        <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50">
-          <CardHeader className="px-8 pt-6 pb-4 border-b border-slate-700/50">
+        <Card className="bg-white dark:bg-slate-800/50 backdrop-blur-md border-slate-200 dark:border-slate-700/50">
+          <CardHeader className="px-8 pt-6 pb-4 border-b border-slate-200 dark:border-slate-700/50">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg text-white font-semibold flex items-center gap-2">
+              <CardTitle className="text-lg text-slate-900 dark:text-white font-semibold flex items-center gap-2">
                 <XCircle size={18} className="text-slate-400" />
                 Cancelled Services
                 <span className="text-slate-400 font-normal text-base">({cancelledRequests.length})</span>
@@ -513,9 +521,9 @@ export function ServicesPanel() {
           </CardHeader>
           <CardContent className="px-8 pb-8 pt-6">
             {requestsLoading ? (
-              <p className="text-slate-400 py-16 text-center text-sm">Loading...</p>
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">Loading...</p>
             ) : cancelledRequests.length === 0 ? (
-              <p className="text-slate-400 py-16 text-center text-sm">No cancelled services.</p>
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">No cancelled services.</p>
             ) : (
               <>
                 <RequestsTable rows={pagCancelled} onStatusChange={handleRequestStatus} onDelete={setDeletingRequest} dateLabel="Cancelled On" dateField="updated_at" />
@@ -618,31 +626,32 @@ function RequestsTable({
   dateField?: "created_at" | "updated_at";
 }) {
   return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
     <Table>
       <TableHeader>
-        <TableRow className="border-slate-700 hover:bg-transparent">
-          <TableHead className="text-slate-400 font-medium">Requester</TableHead>
-          <TableHead className="text-slate-400 font-medium">Service</TableHead>
-          <TableHead className="text-slate-400 font-medium">Qty</TableHead>
-          <TableHead className="text-slate-400 font-medium">Total</TableHead>
-          <TableHead className="text-slate-400 font-medium">Notes</TableHead>
-          <TableHead className="text-slate-400 font-medium">Status</TableHead>
-          <TableHead className="text-slate-400 font-medium">{dateLabel}</TableHead>
-          <TableHead className="text-slate-400 font-medium w-16">Del</TableHead>
+        <TableRow>
+          <TableHead>Requester</TableHead>
+          <TableHead>Service</TableHead>
+          <TableHead>Qty</TableHead>
+          <TableHead>Total</TableHead>
+          <TableHead>Notes</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>{dateLabel}</TableHead>
+          <TableHead className="w-16">Del</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map((req) => (
-          <TableRow key={req.id} className="border-slate-700/60 hover:bg-slate-700/20 transition-colors">
+          <TableRow key={req.id}>
             <TableCell>
               <Popover>
-                <PopoverTrigger className="font-medium text-white text-sm hover:text-blue-400 hover:underline transition-colors text-left">
+                <PopoverTrigger className="font-medium text-slate-900 dark:text-white text-sm hover:text-blue-500 dark:hover:text-blue-400 hover:underline transition-colors text-left">
                   {req.name}
                 </PopoverTrigger>
-                <PopoverContent className="w-72 p-0 bg-slate-800 border-slate-700 text-slate-200" side="right" align="start">
-                  <div className="px-4 py-3 border-b border-slate-700">
-                    <p className="font-semibold text-white text-sm">{req.name}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">Service Requester</p>
+                <PopoverContent className="w-72 p-0 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200" side="right" align="start">
+                  <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+                    <p className="font-semibold text-slate-900 dark:text-white text-sm">{req.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Service Requester</p>
                   </div>
                   <div className="px-4 py-3 space-y-2 text-sm">
                     {([
@@ -656,30 +665,30 @@ function RequestsTable({
                       ["Notes",        req.notes],
                     ] as [string, string | null | undefined][]).map(([label, value]) => (
                       <div key={label} className="flex justify-between gap-4">
-                        <span className="text-slate-400 shrink-0">{label}</span>
-                        <span className="text-slate-200 text-right">{value || "—"}</span>
+                        <span className="text-slate-500 dark:text-slate-400 shrink-0">{label}</span>
+                        <span className="text-slate-700 dark:text-slate-200 text-right">{value || "—"}</span>
                       </div>
                     ))}
                   </div>
                 </PopoverContent>
               </Popover>
-              <p className="text-slate-500 text-xs mt-0.5">{req.email}</p>
+              <p className="text-slate-400 dark:text-slate-500 text-xs mt-0.5">{req.email}</p>
             </TableCell>
-            <TableCell className="text-slate-300 text-sm max-w-[160px]">
+            <TableCell className="text-slate-600 dark:text-slate-300 text-sm max-w-[160px]">
               <span className="line-clamp-2">{req.service_name}</span>
             </TableCell>
-            <TableCell className="text-slate-300 text-sm">{req.quantity}</TableCell>
+            <TableCell className="text-slate-600 dark:text-slate-300 text-sm">{req.quantity}</TableCell>
             <TableCell>
               <span className="text-brand-400 font-semibold text-sm">
                 ฿{(req.price_thb * req.quantity).toLocaleString()}
               </span>
             </TableCell>
-            <TableCell className="text-slate-400 text-xs max-w-[120px]">
+            <TableCell className="text-slate-500 dark:text-slate-400 text-xs max-w-[120px]">
               <span className="line-clamp-2">{req.notes ?? <span className="text-slate-600">—</span>}</span>
             </TableCell>
             <TableCell>
               <Select value={req.status} onValueChange={(v) => onStatusChange(req.id, v as ServiceRequestStatus)}>
-                <SelectTrigger className="h-7 text-xs w-32 border-slate-600 bg-slate-700/50">
+                <SelectTrigger className="h-7 text-xs w-32 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50">
                   <SelectValue>
                     <Badge className={`${REQ_STATUS_STYLES[req.status]} capitalize text-xs`}>
                       {req.status}
@@ -694,7 +703,7 @@ function RequestsTable({
                 </SelectContent>
               </Select>
             </TableCell>
-            <TableCell className="text-slate-400 text-xs whitespace-nowrap">
+            <TableCell className="text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
               {new Date(req[dateField]).toLocaleDateString("en-GB", {
                 day: "2-digit", month: "short", year: "numeric",
               })}
@@ -708,6 +717,7 @@ function RequestsTable({
         ))}
       </TableBody>
     </Table>
+    </div>
   );
 }
 
@@ -734,7 +744,7 @@ function ServiceFormFields({
           step={50}
           onChange={(v) => setForm((p) => ({ ...p, price_thb: v, price_display: `${v.toLocaleString()} THB` }))}
         />
-        <p className="text-xs text-slate-500">Display label: <span className="font-medium">{form.price_display}</span></p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">Display label: <span className="font-medium">{form.price_display}</span></p>
       </div>
 
       <div className="space-y-1.5">

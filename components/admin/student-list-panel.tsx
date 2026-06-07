@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   createColumnHelper,
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
   flexRender,
-  type Column,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Users, Pencil, Trash2, Search, Plus, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Pencil, Trash2, Search, Plus, Download, X, ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/ui/number-stepper";
@@ -45,6 +44,85 @@ const VISA_LABELS: Record<VisaStatus, string> = {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function SearchableSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Select...",
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = options.filter((o) => o.label.toLowerCase().includes(q.toLowerCase()));
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => { setOpen((p) => !p); setQ(""); }}
+        className="w-full h-10 flex items-center justify-between gap-2 px-3 rounded-lg border border-input bg-transparent dark:bg-input/30 text-sm transition-colors hover:border-ring disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <span className={selected ? "text-foreground" : "text-muted-foreground"}>
+          {selected?.label ?? placeholder}
+        </span>
+        <ChevronsUpDown size={14} className="shrink-0 opacity-50" />
+      </button>
+      {open && (
+        <div className="absolute z-[300] top-full left-0 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-border">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                autoFocus
+                className="w-full pl-8 pr-3 py-1.5 text-sm outline-none bg-transparent text-foreground placeholder:text-muted-foreground"
+              />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {filtered.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-3">No results.</p>
+            ) : (
+              filtered.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => { onChange(opt.value); setOpen(false); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md text-left transition-colors hover:bg-accent ${value === opt.value ? "text-blue-600 dark:text-blue-400" : "text-foreground"}`}
+                >
+                  <Check size={13} className={value === opt.value ? "opacity-100 text-blue-500" : "opacity-0"} />
+                  {opt.label}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 type RowSource = "student" | "application";
@@ -112,22 +190,23 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
     .map((r, i) => ({ ...r, num: i + 1 }));
 }
 
-function getPinStyle(column: Column<Row>, isHeader = false): React.CSSProperties {
-  const isPinned = column.getIsPinned();
-  if (!isPinned) return {};
-  return {
-    position: "sticky",
-    left: `${column.getStart("left")}px`,
-    zIndex: isHeader ? 20 : 10,
-    backgroundColor: "#1a2132",
-  };
-}
 
 const columnHelper = createColumnHelper<Row>();
 
-export function StudentListPanel() {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+export function StudentListPanel({
+  initialStudents,
+  initialApplications,
+  initialCourses,
+}: {
+  initialStudents?: StudentWithProfile[];
+  initialApplications?: Application[];
+  initialCourses?: Course[];
+} = {}) {
+  const hasInitial = initialStudents !== undefined;
+  const [rows, setRows] = useState<Row[]>(() =>
+    hasInitial ? buildRows(initialStudents!, initialApplications ?? []) : []
+  );
+  const [loading, setLoading] = useState(!hasInitial);
   const [search, setSearch] = useState("");
 
   const [editingRow, setEditingRow] = useState<Row | null>(null);
@@ -138,11 +217,12 @@ export function StudentListPanel() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const [deletingRow, setDeletingRow] = useState<Row | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<Course[]>(initialCourses ?? []);
   const [addForm, setAddForm] = useState({
     name: "", email: "", phone: "", nationality: "", passport_number: "",
     course_id: "", duration_months: "", visa_status: "" as VisaStatus | "",
@@ -151,7 +231,7 @@ export function StudentListPanel() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (!hasInitial) load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     const [s, a, c] = await Promise.all([getStudents(), getApplications(), getCourses()]);
@@ -230,18 +310,6 @@ export function StudentListPanel() {
     setSaving(false);
   }
 
-  async function handleDelete() {
-    if (!deletingRow) return;
-    setDeleting(true);
-    const res = deletingRow.source === "student"
-      ? await deleteStudent(deletingRow.id)
-      : await deleteApplication(deletingRow.id);
-    if (res.success) {
-      setRows((prev) => prev.filter((r) => r.id !== deletingRow.id).map((r, i) => ({ ...r, num: i + 1 })));
-      setDeletingRow(null);
-    }
-    setDeleting(false);
-  }
 
   function exportCSV(data: Row[]) {
     const headers = [
@@ -293,10 +361,25 @@ export function StudentListPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const columns = useMemo(() => [
     columnHelper.display({
-      id: "num",
-      header: "#",
-      cell: ({ row }) => <span className="text-slate-500 text-xs">{row.original.num}</span>,
-      size: 44,
+      id: "select",
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          ref={(el) => { if (el) el.indeterminate = table.getIsSomePageRowsSelected(); }}
+          checked={table.getIsAllPageRowsSelected()}
+          onChange={table.getToggleAllPageRowsSelectedHandler()}
+          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 accent-blue-500 cursor-pointer"
+        />
+      ),
+      cell: ({ row }) => (
+        <input
+          type="checkbox"
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+          className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 accent-blue-500 cursor-pointer"
+        />
+      ),
+      size: 40,
     }),
     columnHelper.accessor("name", {
       id: "name",
@@ -305,13 +388,13 @@ export function StudentListPanel() {
         const r = row.original;
         return (
           <Popover>
-            <PopoverTrigger className="text-white font-medium hover:text-blue-400 hover:underline transition-colors text-left whitespace-nowrap">
+            <PopoverTrigger className="text-slate-900 dark:text-white font-medium hover:text-blue-500 dark:hover:text-blue-400 hover:underline transition-colors text-left whitespace-nowrap">
               {r.name}
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-0 bg-slate-800 border-slate-700 text-slate-200" side="right" align="start">
-              <div className="px-4 py-3 border-b border-slate-700">
-                <p className="font-semibold text-white text-sm">{r.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5 capitalize">{r.source === "student" ? "Registered Student" : "Enrolled via Application"}</p>
+            <PopoverContent className="w-72 p-0 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200" side="right" align="start">
+              <div className="px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+                <p className="font-semibold text-slate-900 dark:text-white text-sm">{r.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 capitalize">{r.source === "student" ? "Registered Student" : "Enrolled via Application"}</p>
               </div>
               <div className="px-4 py-3 space-y-2 text-sm">
                 {([
@@ -326,8 +409,8 @@ export function StudentListPanel() {
                   ["Visa Status", r.visa_status ? VISA_LABELS[r.visa_status] : null],
                 ] as [string, string | null][]).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
-                    <span className="text-slate-400 shrink-0">{label}</span>
-                    <span className="text-slate-200 text-right">{value ?? "—"}</span>
+                    <span className="text-slate-500 dark:text-slate-400 shrink-0">{label}</span>
+                    <span className="text-slate-700 dark:text-slate-200 text-right">{value ?? "—"}</span>
                   </div>
                 ))}
               </div>
@@ -335,49 +418,48 @@ export function StudentListPanel() {
           </Popover>
         );
       },
-      size: 164,
+      size: 150,
     }),
     columnHelper.accessor("nationality", {
       id: "nationality",
       header: "Nationality",
-      cell: ({ getValue }) => <span className="text-slate-300">{getValue() ?? "—"}</span>,
-      size: 116,
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300">{getValue() ?? "—"}</span>,
+      size: 100,
     }),
     columnHelper.accessor("passport_number", {
       id: "passport_number",
       header: "Passport No.",
-      cell: ({ getValue }) => <span className="text-slate-300 font-mono text-xs">{getValue() ?? "—"}</span>,
-      size: 132,
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300 font-mono text-xs">{getValue() ?? "—"}</span>,
+      size: 120,
     }),
     columnHelper.accessor("phone", {
       id: "phone",
       header: "Phone",
-      cell: ({ getValue }) => <span className="text-slate-300">{getValue() ?? "—"}</span>,
-      size: 124,
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300">{getValue() ?? "—"}</span>,
+      size: 114,
     }),
     columnHelper.accessor("duration_months", {
       id: "duration_months",
       header: "Duration",
-      cell: ({ getValue }) => <span className="text-slate-300">{getValue() ? `${getValue()} mo.` : "—"}</span>,
-      size: 80,
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300">{getValue() ? `${getValue()} mo.` : "—"}</span>,
+      size: 72,
     }),
     columnHelper.accessor("course_level", {
       id: "course_level",
       header: "Course / Level",
-      cell: ({ getValue }) => <span className="text-slate-300 capitalize">{getValue() ?? "—"}</span>,
-      size: 188,
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300 capitalize whitespace-nowrap">{getValue() ?? "—"}</span>,
     }),
     columnHelper.accessor("visa_change_date", {
       id: "visa_change_date",
       header: "Visa Change",
-      cell: ({ getValue }) => <span className="text-slate-300 whitespace-nowrap">{getValue() ? formatDate(getValue()!) : "—"}</span>,
-      size: 116,
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300 whitespace-nowrap">{getValue() ? formatDate(getValue()!) : "—"}</span>,
+      size: 110,
     }),
     columnHelper.accessor("visa_last_date", {
       id: "visa_last_date",
       header: "Visa Last",
-      cell: ({ getValue }) => <span className="text-slate-300 whitespace-nowrap">{getValue() ? formatDate(getValue()!) : "—"}</span>,
-      size: 104,
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300 whitespace-nowrap">{getValue() ? formatDate(getValue()!) : "—"}</span>,
+      size: 100,
     }),
     columnHelper.accessor("visa_status", {
       id: "visa_status",
@@ -397,7 +479,7 @@ export function StudentListPanel() {
               }
             }}
           >
-            <SelectTrigger className="h-7 w-36 text-xs bg-slate-700/50 border-slate-600 text-slate-300">
+            <SelectTrigger className="h-7 w-32 text-xs bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
               <SelectValue placeholder="Set status" />
             </SelectTrigger>
             <SelectContent>
@@ -408,25 +490,7 @@ export function StudentListPanel() {
           </Select>
         );
       },
-      size: 152,
-    }),
-    columnHelper.display({
-      id: "actions",
-      header: "Actions",
-      cell: ({ row }) => {
-        const r = row.original;
-        return (
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300 h-auto p-0 flex items-center gap-1 text-xs" onClick={() => openEdit(r)}>
-              <Pencil size={13} /> Edit
-            </Button>
-            <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1 text-xs" onClick={() => setDeletingRow(r)}>
-              <Trash2 size={13} /> Delete
-            </Button>
-          </div>
-        );
-      },
-      size: 100,
+      size: 140,
     }),
   ], []);
 
@@ -435,11 +499,30 @@ export function StudentListPanel() {
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    enableRowSelection: true,
+    onRowSelectionChange: setRowSelection,
+    state: { rowSelection },
     initialState: {
-      columnPinning: { left: ["num", "name", "nationality", "passport_number"] },
       pagination: { pageSize: PER_PAGE, pageIndex: 0 },
     },
   });
+
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedCount = selectedRows.length;
+
+  async function handleBulkDelete() {
+    setBulkDeleting(true);
+    await Promise.all(selectedRows.map((row) =>
+      row.original.source === "student"
+        ? deleteStudent(row.original.id)
+        : deleteApplication(row.original.id)
+    ));
+    const deletedIds = new Set(selectedRows.map((r) => r.original.id));
+    setRows((prev) => prev.filter((r) => !deletedIds.has(r.id)).map((r, i) => ({ ...r, num: i + 1 })));
+    setRowSelection({});
+    setShowDeleteConfirm(false);
+    setBulkDeleting(false);
+  }
 
   // Reset to first page on search change
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -453,60 +536,88 @@ export function StudentListPanel() {
 
   return (
     <main className="px-6 py-12">
-      <Card className="bg-slate-800/50 backdrop-blur-md border-slate-700/50">
-        <CardHeader className="p-8 pb-6">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <Users size={24} className="text-blue-400" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl text-white">Student List</CardTitle>
-                <p className="text-slate-400 text-sm">All enrolled students</p>
-              </div>
+      <Card className="bg-white dark:bg-slate-800/50 backdrop-blur-md border-slate-200 dark:border-slate-700/50">
+        <CardHeader className="px-8 pt-8 pb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <Users size={24} className="text-blue-400" />
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <Button onClick={openAdd} className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2">
-                <Plus size={16} /> Add Student
-              </Button>
-              <Button
-                onClick={() => exportCSV(filtered)}
-                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600"
-              >
-                <Download size={16} /> Export CSV
-              </Button>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder="Search name, nationality, passport, phone..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 bg-slate-700/50 border-slate-600 text-slate-200 placeholder:text-slate-500"
-                />
-              </div>
+            <div>
+              <CardTitle className="text-2xl text-slate-900 dark:text-white">Student List</CardTitle>
+              <p className="text-slate-500 dark:text-slate-400 text-sm">All enrolled students</p>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="px-8 pb-8">
+          {/* ── Persistent Toolbar ── */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {selectedCount > 0 && (
+              <div className="flex items-center gap-1.5 h-9 px-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-lg shrink-0">
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300 whitespace-nowrap mr-1">{selectedCount} selected</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={selectedCount !== 1}
+                  onClick={() => openEdit(selectedRows[0].original)}
+                  className="h-7 px-2.5 text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-40"
+                >
+                  <Pencil size={13} className="mr-1" /> Edit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="h-7 px-2.5 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30"
+                >
+                  <Trash2 size={13} className="mr-1" /> Delete
+                </Button>
+                <button
+                  onClick={() => setRowSelection({})}
+                  className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500 dark:text-blue-400"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+            <div className="relative flex-1 min-w-44">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search name, nationality, passport, phone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 pl-9 bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              />
+            </div>
+            <Button onClick={openAdd} className="h-9 bg-brand-600 hover:bg-brand-700 flex items-center gap-2 shrink-0">
+              <Plus size={16} /> Add Student
+            </Button>
+            <Button
+              onClick={() => exportCSV(filtered)}
+              className="h-9 flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 shrink-0"
+            >
+              <Download size={16} /> Export CSV
+            </Button>
+          </div>
+
           {loading ? (
             <div className="flex justify-center py-16">
               <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : rows.length === 0 ? (
-            <p className="text-center text-slate-400 py-16">No enrolled students yet.</p>
+            <p className="text-center text-slate-500 dark:text-slate-400 py-16">No enrolled students yet.</p>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border border-slate-700/50">
-                <table className="w-full table-fixed border-collapse text-sm" style={{ minWidth: "1320px" }}>
+              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
+                <table className="w-full table-auto border-collapse text-sm" style={{ minWidth: "1096px" }}>
                   <thead>
                     {table.getHeaderGroups().map((hg) => (
-                      <tr key={hg.id} className="border-b border-slate-700">
+                      <tr key={hg.id} className="border-b border-slate-200 dark:border-slate-700">
                         {hg.headers.map((header) => (
                           <th
                             key={header.id}
-                            style={{ width: header.getSize(), ...getPinStyle(header.column, true) }}
-                            className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wide whitespace-nowrap bg-slate-800/80"
+                            style={{}}
+                            className="h-11 px-4 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide whitespace-nowrap bg-slate-50 dark:bg-slate-800/80 align-middle"
                           >
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </th>
@@ -517,17 +628,17 @@ export function StudentListPanel() {
                   <tbody>
                     {table.getRowModel().rows.length === 0 ? (
                       <tr>
-                        <td colSpan={columns.length} className="text-center py-12 text-slate-400">
+                        <td colSpan={columns.length} className="text-center py-12 text-slate-500 dark:text-slate-400">
                           No results found.
                         </td>
                       </tr>
                     ) : (
                       table.getRowModel().rows.map((row) => (
-                        <tr key={row.id} className="border-b border-slate-700/60 hover:bg-slate-700/20 transition-colors">
+                        <tr key={row.id} className={`border-b border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors ${row.getIsSelected() ? "bg-blue-50 dark:bg-blue-950/30" : ""}`}>
                           {row.getVisibleCells().map((cell) => (
                             <td
                               key={cell.id}
-                              style={{ width: cell.column.getSize(), ...getPinStyle(cell.column) }}
+                              style={{}}
                               className="px-4 py-3 align-middle"
                             >
                               {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -540,16 +651,16 @@ export function StudentListPanel() {
                 </table>
               </div>
 
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
-                <p className="text-sm text-slate-400">
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {total > 0 ? `Showing ${from}–${to} of ${total}` : "No results"}
                 </p>
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white disabled:opacity-30" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
+                  <Button variant="ghost" size="sm" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}>
                     <ChevronLeft size={16} /> Prev
                   </Button>
-                  <span className="text-sm text-slate-400 px-2">{pageIndex + 1} / {pageCount}</span>
-                  <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white disabled:opacity-30" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
+                  <span className="text-sm text-slate-500 dark:text-slate-400 px-2">{pageIndex + 1} / {pageCount}</span>
+                  <Button variant="ghost" size="sm" className="text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white disabled:opacity-30" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}>
                     Next <ChevronRight size={16} />
                   </Button>
                 </div>
@@ -585,14 +696,12 @@ export function StudentListPanel() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Status</label>
-              <Select value={editForm.visa_status} onValueChange={(v) => setEditForm((f) => ({ ...f, visa_status: v as VisaStatus }))}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(VISA_LABELS) as [VisaStatus, string][]).map(([val, label]) => (
-                    <SelectItem key={val} value={val}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={editForm.visa_status}
+                onChange={(v) => setEditForm((f) => ({ ...f, visa_status: v as VisaStatus }))}
+                options={(Object.entries(VISA_LABELS) as [VisaStatus, string][]).map(([val, label]) => ({ value: val, label }))}
+                placeholder="Select status"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Change Date</label>
@@ -613,15 +722,18 @@ export function StudentListPanel() {
       </Sheet>
 
       {/* ── Delete Confirm Dialog ── */}
-      <Dialog open={!!deletingRow} onOpenChange={(o) => !o && setDeletingRow(null)}>
+      <Dialog open={showDeleteConfirm} onOpenChange={(o) => !o && setShowDeleteConfirm(false)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Remove Student</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Remove Student{selectedCount > 1 ? "s" : ""}</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Remove <span className="font-semibold text-foreground">{deletingRow?.name}</span>? This cannot be undone.
+            {selectedCount === 1
+              ? <><span>Remove </span><span className="font-semibold text-foreground">{selectedRows[0]?.original.name}</span><span>? This cannot be undone.</span></>
+              : <><span>Remove </span><span className="font-semibold text-foreground">{selectedCount} students</span><span>? This cannot be undone.</span></>
+            }
           </p>
           <DialogFooter>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Removing..." : "Remove"}
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDeleting}>
+              {bulkDeleting ? "Removing..." : "Remove"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -661,25 +773,21 @@ export function StudentListPanel() {
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Course</label>
-              <Select value={addForm.course_id} onValueChange={(v) => setAddForm({ ...addForm, course_id: v ?? "" })}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select course" /></SelectTrigger>
-                <SelectContent>
-                  {courses.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={addForm.course_id}
+                onChange={(v) => setAddForm((f) => ({ ...f, course_id: v }))}
+                options={courses.map((c) => ({ value: c.id, label: c.name }))}
+                placeholder="Select course"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Status</label>
-              <Select value={addForm.visa_status} onValueChange={(v) => setAddForm((f) => ({ ...f, visa_status: v as VisaStatus }))}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select status" /></SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(VISA_LABELS) as [VisaStatus, string][]).map(([val, label]) => (
-                    <SelectItem key={val} value={val}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={addForm.visa_status}
+                onChange={(v) => setAddForm((f) => ({ ...f, visa_status: v as VisaStatus }))}
+                options={(Object.entries(VISA_LABELS) as [VisaStatus, string][]).map(([val, label]) => ({ value: val, label }))}
+                placeholder="Select status"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Change Date</label>
