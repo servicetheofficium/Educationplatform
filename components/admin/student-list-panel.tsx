@@ -503,6 +503,12 @@ export function StudentListPanel({
       cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300 font-mono text-xs">{getValue() ?? "—"}</span>,
       size: 120,
     }),
+    columnHelper.accessor("email", {
+      id: "email",
+      header: "Email",
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300 text-xs">{getValue() ?? "—"}</span>,
+      size: 180,
+    }),
     columnHelper.accessor("phone", {
       id: "phone",
       header: "Phone",
