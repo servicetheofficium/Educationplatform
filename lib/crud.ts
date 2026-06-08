@@ -239,6 +239,25 @@ export async function getStudents() {
   }
 }
 
+export async function updateProfile(
+  userId: string,
+  data: Partial<{ full_name: string; email: string }>
+) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("profiles")
+      .update(data)
+      .eq("id", userId)
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update profile" };
+  }
+}
+
 export async function updateStudent(
   id: string,
   data: Partial<{

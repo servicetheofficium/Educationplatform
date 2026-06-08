@@ -9,8 +9,8 @@ import { useState } from "react";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: BarChart3, exact: true },
-  { href: "/admin/students", label: "Student List", icon: List },
   { href: "/admin/applications", label: "Student Applications", icon: FileText },
+  { href: "/admin/students", label: "Student List", icon: List },
   { href: "/admin/services", label: "Services", icon: Wrench },
 ];
 

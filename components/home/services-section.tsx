@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   FileText, Zap, Clock, CreditCard, Camera, Building2, Smartphone,
-  BookOpen, Copy, AlertCircle, HelpCircle,
+  BookOpen, Copy, AlertCircle, HelpCircle, Landmark,
 } from "lucide-react";
 import { useState } from "react";
 import type { ElementType } from "react";
@@ -14,7 +14,7 @@ import type { DocumentService } from "@/lib/types";
 
 const ICON_MAP: Record<string, ElementType> = {
   FileText, Zap, Clock, CreditCard, Camera, Building2, Smartphone,
-  BookOpen, Copy, AlertCircle,
+  BookOpen, Copy, AlertCircle, Landmark,
 };
 
 function resolveIcon(name: string | null): ElementType {

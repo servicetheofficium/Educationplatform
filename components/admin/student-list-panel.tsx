@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import {
   getStudents, getApplications, getCourses,
-  createApplication, updateApplication, updateStudent, deleteStudent, deleteApplication,
+  createApplication, updateApplication, updateStudent, updateProfile, deleteStudent, deleteApplication,
 } from "@/lib/crud";
 import type { StudentWithProfile, Application, Course, VisaStatus } from "@/lib/types";
 
@@ -132,11 +132,15 @@ type Row = {
   source: RowSource;
   num: number;
   name: string;
+  email: string | null;
+  user_id: string | null;
   nationality: string | null;
   passport_number: string | null;
   phone: string | null;
   duration_months: number | null;
   course_level: string | null;
+  course_id: string | null;
+  language_level: "beginner" | "intermediate" | "advanced" | null;
   enrolled_date: string;
   visa_status: VisaStatus | null;
   visa_change_date: string | null;
@@ -144,10 +148,14 @@ type Row = {
 };
 
 type EditForm = {
+  name: string;
+  email: string;
   nationality: string;
   passport_number: string;
   phone: string;
   duration_months: string;
+  course_id: string;
+  language_level: "beginner" | "intermediate" | "advanced" | "";
   visa_status: VisaStatus | "";
   visa_change_date: string;
   visa_last_date: string;
@@ -159,11 +167,15 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
       id: s.id,
       source: "student" as RowSource,
       name: s.profiles?.full_name ?? "—",
+      email: s.profiles?.email ?? null,
+      user_id: s.user_id,
       nationality: s.nationality ?? null,
       passport_number: s.passport_number ?? null,
       phone: s.phone ?? null,
       duration_months: s.duration_months ?? null,
       course_level: s.language_level ?? null,
+      course_id: null,
+      language_level: s.language_level ?? null,
       enrolled_date: s.enrollment_date,
       visa_status: s.visa_status ?? null,
       visa_change_date: s.visa_change_date ?? null,
@@ -175,11 +187,15 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
         id: a.id,
         source: "application" as RowSource,
         name: a.name,
+        email: a.email,
+        user_id: null,
         nationality: a.nationality ?? null,
         passport_number: a.passport_number ?? null,
         phone: a.phone ?? null,
         duration_months: a.duration_months ?? null,
         course_level: a.courses?.name ?? null,
+        course_id: a.course_id ?? null,
+        language_level: null,
         enrolled_date: a.updated_at,
         visa_status: a.visa_status ?? null,
         visa_change_date: a.visa_change_date ?? null,
@@ -211,7 +227,8 @@ export function StudentListPanel({
 
   const [editingRow, setEditingRow] = useState<Row | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
-    nationality: "", passport_number: "", phone: "", duration_months: "",
+    name: "", email: "", nationality: "", passport_number: "", phone: "",
+    duration_months: "", course_id: "", language_level: "",
     visa_status: "", visa_change_date: "", visa_last_date: "",
   });
   const [saving, setSaving] = useState(false);
@@ -276,36 +293,90 @@ export function StudentListPanel({
     setSaveError(null);
     setEditingRow(row);
     setEditForm({
-      nationality: row.nationality ?? "",
+      name:            row.name,
+      email:           row.email ?? "",
+      nationality:     row.nationality ?? "",
       passport_number: row.passport_number ?? "",
-      phone: row.phone ?? "",
+      phone:           row.phone ?? "",
       duration_months: row.duration_months ? String(row.duration_months) : "",
-      visa_status: row.visa_status ?? "",
+      course_id:       row.course_id ?? "",
+      language_level:  row.language_level ?? "",
+      visa_status:     row.visa_status ?? "",
       visa_change_date: row.visa_change_date ?? "",
-      visa_last_date: row.visa_last_date ?? "",
+      visa_last_date:  row.visa_last_date ?? "",
     });
   }
 
   async function handleSave() {
     if (!editingRow) return;
     setSaving(true); setSaveError(null);
-    const payload = {
-      nationality: editForm.nationality || undefined,
+
+    const sharedPayload = {
+      nationality:     editForm.nationality || undefined,
       passport_number: editForm.passport_number || undefined,
-      phone: editForm.phone || undefined,
+      phone:           editForm.phone || undefined,
       duration_months: editForm.duration_months ? Number(editForm.duration_months) : undefined,
-      visa_status: (editForm.visa_status || undefined) as VisaStatus | undefined,
+      visa_status:     (editForm.visa_status || undefined) as VisaStatus | undefined,
       visa_change_date: editForm.visa_change_date || undefined,
-      visa_last_date: editForm.visa_last_date || undefined,
+      visa_last_date:  editForm.visa_last_date || undefined,
     };
-    const res = editingRow.source === "student"
-      ? await updateStudent(editingRow.id, payload)
-      : await updateApplication(editingRow.id, payload);
+
+    let res: { success: boolean; error?: string };
+    let updatedName  = editingRow.name;
+    let updatedEmail = editingRow.email;
+    let updatedCourseLevel = editingRow.course_level;
+    let updatedCourseId    = editingRow.course_id;
+    let updatedLangLevel   = editingRow.language_level;
+
+    if (editingRow.source === "student") {
+      const studentPayload = {
+        ...sharedPayload,
+        language_level: (editForm.language_level || undefined) as "beginner" | "intermediate" | "advanced" | undefined,
+      };
+      res = await updateStudent(editingRow.id, studentPayload);
+      if (res.success && editingRow.user_id) {
+        const profilePayload: { full_name?: string; email?: string } = {};
+        if (editForm.name && editForm.name !== editingRow.name) profilePayload.full_name = editForm.name;
+        if (editForm.email && editForm.email !== editingRow.email) profilePayload.email = editForm.email;
+        if (Object.keys(profilePayload).length > 0) await updateProfile(editingRow.user_id, profilePayload);
+        if (profilePayload.full_name) updatedName  = profilePayload.full_name;
+        if (profilePayload.email)     updatedEmail = profilePayload.email;
+      }
+      updatedLangLevel   = (editForm.language_level as typeof updatedLangLevel) || null;
+      updatedCourseLevel = editForm.language_level || editingRow.course_level;
+    } else {
+      const selectedCourse = courses.find((c) => c.id === editForm.course_id);
+      const appPayload = {
+        ...sharedPayload,
+        name:      editForm.name || undefined,
+        email:     editForm.email || undefined,
+        course_id: editForm.course_id || undefined,
+      };
+      res = await updateApplication(editingRow.id, appPayload);
+      if (appPayload.name)      updatedName        = appPayload.name;
+      if (appPayload.email)     updatedEmail       = appPayload.email;
+      if (appPayload.course_id) { updatedCourseId  = appPayload.course_id; updatedCourseLevel = selectedCourse?.name ?? editingRow.course_level; }
+    }
+
     if (res.success) {
-      setRows((prev) => prev.map((r) => r.id === editingRow.id ? { ...r, ...payload, nationality: payload.nationality ?? null, passport_number: payload.passport_number ?? null, phone: payload.phone ?? null, duration_months: payload.duration_months ?? null, visa_status: payload.visa_status ?? null, visa_change_date: payload.visa_change_date ?? null, visa_last_date: payload.visa_last_date ?? null } : r));
+      setRows((prev) => prev.map((r) => r.id === editingRow.id ? {
+        ...r,
+        name:            updatedName,
+        email:           updatedEmail,
+        course_level:    updatedCourseLevel,
+        course_id:       updatedCourseId,
+        language_level:  updatedLangLevel,
+        nationality:     sharedPayload.nationality     ?? r.nationality,
+        passport_number: sharedPayload.passport_number ?? r.passport_number,
+        phone:           sharedPayload.phone           ?? r.phone,
+        duration_months: sharedPayload.duration_months ?? r.duration_months,
+        visa_status:     sharedPayload.visa_status     ?? r.visa_status,
+        visa_change_date: sharedPayload.visa_change_date ?? r.visa_change_date,
+        visa_last_date:  sharedPayload.visa_last_date  ?? r.visa_last_date,
+      } : r));
       setEditingRow(null);
     } else {
-      setSaveError(res.error ?? "Failed to save.");
+      setSaveError((res as { error?: string }).error ?? "Failed to save.");
     }
     setSaving(false);
   }
@@ -679,6 +750,14 @@ export function StudentListPanel({
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4">
             <div className="space-y-1.5">
+              <label className="text-sm font-medium">Full Name</label>
+              <Input className="w-full" placeholder="e.g. John Smith" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Email</label>
+              <Input className="w-full" type="email" placeholder="e.g. john@email.com" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">Nationality</label>
               <Input className="w-full" placeholder="e.g. Japanese" value={editForm.nationality} onChange={(e) => setEditForm((f) => ({ ...f, nationality: e.target.value }))} />
             </div>
@@ -694,6 +773,29 @@ export function StudentListPanel({
               <label className="text-sm font-medium">Duration (months)</label>
               <NumberStepper value={Number(editForm.duration_months) || 1} min={1} onChange={(v) => setEditForm((f) => ({ ...f, duration_months: String(v) }))} />
             </div>
+            {editingRow?.source === "application" ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Course</label>
+                <SearchableSelect
+                  value={editForm.course_id}
+                  onChange={(v) => setEditForm((f) => ({ ...f, course_id: v }))}
+                  options={courses.map((c) => ({ value: c.id, label: c.name }))}
+                  placeholder="Select course"
+                />
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Language Level</label>
+                <Select value={editForm.language_level} onValueChange={(v) => setEditForm((f) => ({ ...f, language_level: v as "beginner" | "intermediate" | "advanced" }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select level" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Beginner</SelectItem>
+                    <SelectItem value="intermediate">Intermediate</SelectItem>
+                    <SelectItem value="advanced">Advanced</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Status</label>
               <SearchableSelect
