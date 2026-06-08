@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Wrench, ClipboardList,
-  CheckCircle2, XCircle, Download,
+  CheckCircle2, XCircle, Download, Search,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -116,6 +116,7 @@ export function ServicesPanel({
 } = {}) {
   const hasInitial = initialServices !== undefined;
   const [tab, setTab] = useState<Tab>("catalog");
+  const [search, setSearch] = useState("");
 
   const [services, setServices] = useState<DocumentService[]>(initialServices ?? []);
   const [servicesLoading, setServicesLoading] = useState(!hasInitial);
@@ -159,6 +160,8 @@ export function ServicesPanel({
     if (cancelledPage > maxCancelled) setCancelledPage(maxCancelled);
   }, [requests.length, requestPage, completedPage, cancelledPage]);
 
+  useEffect(() => { setSearch(""); setServicePage(1); setRequestPage(1); setCompletedPage(1); setCancelledPage(1); }, [tab]);
+
   useEffect(() => {
     if (editingService) {
       setSaveError(null);
@@ -177,14 +180,21 @@ export function ServicesPanel({
     }
   }, [editingService]);
 
+  const q = search.toLowerCase();
+
   const activeRequests    = requests.filter((r) => r.status === "pending" || r.status === "processing");
   const completedRequests = requests.filter((r) => r.status === "completed");
   const cancelledRequests = requests.filter((r) => r.status === "cancelled");
 
-  const pagServices   = services.slice((servicePage - 1) * PER_PAGE, servicePage * PER_PAGE);
-  const pagRequests   = activeRequests.slice((requestPage - 1) * PER_PAGE, requestPage * PER_PAGE);
-  const pagCompleted  = completedRequests.slice((completedPage - 1) * PER_PAGE, completedPage * PER_PAGE);
-  const pagCancelled  = cancelledRequests.slice((cancelledPage - 1) * PER_PAGE, cancelledPage * PER_PAGE);
+  const filteredServices  = q ? services.filter((s) => s.name.toLowerCase().includes(q) || s.category.toLowerCase().includes(q) || (s.processing_time ?? "").toLowerCase().includes(q)) : services;
+  const filteredActive    = q ? activeRequests.filter((r) => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || r.service_name.toLowerCase().includes(q) || (r.passport_number ?? "").toLowerCase().includes(q) || (r.nationality ?? "").toLowerCase().includes(q)) : activeRequests;
+  const filteredCompleted = q ? completedRequests.filter((r) => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || r.service_name.toLowerCase().includes(q) || (r.passport_number ?? "").toLowerCase().includes(q) || (r.nationality ?? "").toLowerCase().includes(q)) : completedRequests;
+  const filteredCancelled = q ? cancelledRequests.filter((r) => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || r.service_name.toLowerCase().includes(q) || (r.passport_number ?? "").toLowerCase().includes(q) || (r.nationality ?? "").toLowerCase().includes(q)) : cancelledRequests;
+
+  const pagServices   = filteredServices.slice((servicePage - 1) * PER_PAGE, servicePage * PER_PAGE);
+  const pagRequests   = filteredActive.slice((requestPage - 1) * PER_PAGE, requestPage * PER_PAGE);
+  const pagCompleted  = filteredCompleted.slice((completedPage - 1) * PER_PAGE, completedPage * PER_PAGE);
+  const pagCancelled  = filteredCancelled.slice((cancelledPage - 1) * PER_PAGE, cancelledPage * PER_PAGE);
   const pendingCount  = requests.filter((r) => r.status === "pending").length;
 
   const handleCreate = async () => {
@@ -326,6 +336,17 @@ export function ServicesPanel({
         ))}
       </div>
 
+      {/* ── Search bar ── */}
+      <div className="relative mb-4 max-w-sm">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        <Input
+          placeholder={tab === "catalog" ? "Search services…" : "Search by name, email, service, passport…"}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 h-9 bg-slate-800/60 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:border-brand-500"
+        />
+      </div>
+
       {/* ── Catalog Tab ── */}
       {tab === "catalog" && (
         <Card className="bg-white dark:bg-slate-800/50 backdrop-blur-md border-slate-200 dark:border-slate-700/50">
@@ -333,7 +354,7 @@ export function ServicesPanel({
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-slate-900 dark:text-white font-semibold">
                 All Services
-                <span className="ml-2 text-slate-500 dark:text-slate-400 font-normal text-base">({services.length})</span>
+                <span className="ml-2 text-slate-500 dark:text-slate-400 font-normal text-base">({filteredServices.length}{q ? ` of ${services.length}` : ""})</span>
               </CardTitle>
               <div className="flex gap-2">
                 <Badge className="bg-blue-500/15 text-blue-300 border-0">
@@ -351,8 +372,8 @@ export function ServicesPanel({
           <CardContent className="px-8 pb-8 pt-6">
             {servicesLoading ? (
               <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">Loading services...</p>
-            ) : services.length === 0 ? (
-              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">No services yet. Add one above.</p>
+            ) : filteredServices.length === 0 ? (
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">{q ? "No services match your search." : "No services yet. Add one above."}</p>
             ) : (
               <>
                 <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
@@ -416,9 +437,9 @@ export function ServicesPanel({
                   </TableBody>
                 </Table>
                 </div>
-                {services.length > PER_PAGE && (
-                  <PaginationBar page={servicePage} totalPages={Math.ceil(services.length / PER_PAGE)}
-                    total={services.length} perPage={PER_PAGE}
+                {filteredServices.length > PER_PAGE && (
+                  <PaginationBar page={servicePage} totalPages={Math.ceil(filteredServices.length / PER_PAGE)}
+                    total={filteredServices.length} perPage={PER_PAGE}
                     onPrev={() => setServicePage((p) => p - 1)} onNext={() => setServicePage((p) => p + 1)} />
                 )}
               </>
@@ -434,7 +455,7 @@ export function ServicesPanel({
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-slate-900 dark:text-white font-semibold">
                 Active Requests
-                <span className="ml-2 text-slate-500 dark:text-slate-400 font-normal text-base">({activeRequests.length})</span>
+                <span className="ml-2 text-slate-500 dark:text-slate-400 font-normal text-base">({filteredActive.length}{q ? ` of ${activeRequests.length}` : ""})</span>
               </CardTitle>
               <div className="flex gap-2">
                 {(["pending", "processing"] as ServiceRequestStatus[]).map((s) => {
@@ -448,14 +469,14 @@ export function ServicesPanel({
           <CardContent className="px-8 pb-8 pt-6">
             {requestsLoading ? (
               <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">Loading requests...</p>
-            ) : activeRequests.length === 0 ? (
-              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">No active requests.</p>
+            ) : filteredActive.length === 0 ? (
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">{q ? "No requests match your search." : "No active requests."}</p>
             ) : (
               <>
                 <RequestsTable rows={pagRequests} onStatusChange={handleRequestStatus} onDelete={setDeletingRequest} />
-                {activeRequests.length > PER_PAGE && (
-                  <PaginationBar page={requestPage} totalPages={Math.ceil(activeRequests.length / PER_PAGE)}
-                    total={activeRequests.length} perPage={PER_PAGE}
+                {filteredActive.length > PER_PAGE && (
+                  <PaginationBar page={requestPage} totalPages={Math.ceil(filteredActive.length / PER_PAGE)}
+                    total={filteredActive.length} perPage={PER_PAGE}
                     onPrev={() => setRequestPage((p) => p - 1)} onNext={() => setRequestPage((p) => p + 1)} />
                 )}
               </>
@@ -472,11 +493,11 @@ export function ServicesPanel({
               <CardTitle className="text-lg text-slate-900 dark:text-white font-semibold flex items-center gap-2">
                 <CheckCircle2 size={18} className="text-green-400" />
                 Completed Services
-                <span className="text-slate-400 font-normal text-base">({completedRequests.length})</span>
+                <span className="text-slate-400 font-normal text-base">({filteredCompleted.length}{q ? ` of ${completedRequests.length}` : ""})</span>
               </CardTitle>
               <div className="flex items-center gap-3">
                 <Badge className="bg-green-500/20 text-green-300 border-0 text-xs">
-                  ฿{completedRequests.reduce((sum, r) => sum + r.price_thb * r.quantity, 0).toLocaleString()} total
+                  ฿{filteredCompleted.reduce((sum, r) => sum + r.price_thb * r.quantity, 0).toLocaleString()} total
                 </Badge>
                 {completedRequests.length > 0 && (
                   <Button
@@ -491,14 +512,14 @@ export function ServicesPanel({
           <CardContent className="px-8 pb-8 pt-6">
             {requestsLoading ? (
               <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">Loading...</p>
-            ) : completedRequests.length === 0 ? (
-              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">No completed services yet.</p>
+            ) : filteredCompleted.length === 0 ? (
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">{q ? "No completed services match your search." : "No completed services yet."}</p>
             ) : (
               <>
                 <RequestsTable rows={pagCompleted} onStatusChange={handleRequestStatus} onDelete={setDeletingRequest} dateLabel="Completed On" dateField="updated_at" />
-                {completedRequests.length > PER_PAGE && (
-                  <PaginationBar page={completedPage} totalPages={Math.ceil(completedRequests.length / PER_PAGE)}
-                    total={completedRequests.length} perPage={PER_PAGE}
+                {filteredCompleted.length > PER_PAGE && (
+                  <PaginationBar page={completedPage} totalPages={Math.ceil(filteredCompleted.length / PER_PAGE)}
+                    total={filteredCompleted.length} perPage={PER_PAGE}
                     onPrev={() => setCompletedPage((p) => p - 1)} onNext={() => setCompletedPage((p) => p + 1)} />
                 )}
               </>
@@ -515,21 +536,21 @@ export function ServicesPanel({
               <CardTitle className="text-lg text-slate-900 dark:text-white font-semibold flex items-center gap-2">
                 <XCircle size={18} className="text-slate-400" />
                 Cancelled Services
-                <span className="text-slate-400 font-normal text-base">({cancelledRequests.length})</span>
+                <span className="text-slate-400 font-normal text-base">({filteredCancelled.length}{q ? ` of ${cancelledRequests.length}` : ""})</span>
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent className="px-8 pb-8 pt-6">
             {requestsLoading ? (
               <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">Loading...</p>
-            ) : cancelledRequests.length === 0 ? (
-              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">No cancelled services.</p>
+            ) : filteredCancelled.length === 0 ? (
+              <p className="text-slate-500 dark:text-slate-400 py-16 text-center text-sm">{q ? "No cancelled services match your search." : "No cancelled services."}</p>
             ) : (
               <>
                 <RequestsTable rows={pagCancelled} onStatusChange={handleRequestStatus} onDelete={setDeletingRequest} dateLabel="Cancelled On" dateField="updated_at" />
-                {cancelledRequests.length > PER_PAGE && (
-                  <PaginationBar page={cancelledPage} totalPages={Math.ceil(cancelledRequests.length / PER_PAGE)}
-                    total={cancelledRequests.length} perPage={PER_PAGE}
+                {filteredCancelled.length > PER_PAGE && (
+                  <PaginationBar page={cancelledPage} totalPages={Math.ceil(filteredCancelled.length / PER_PAGE)}
+                    total={filteredCancelled.length} perPage={PER_PAGE}
                     onPrev={() => setCancelledPage((p) => p - 1)} onNext={() => setCancelledPage((p) => p + 1)} />
                 )}
               </>
