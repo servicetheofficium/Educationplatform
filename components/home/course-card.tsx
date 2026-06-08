@@ -36,8 +36,7 @@ export function CourseCard({ course, onSeeDetails, index = 0 }: CourseCardProps)
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
       className="pt-6 h-full"
     >
