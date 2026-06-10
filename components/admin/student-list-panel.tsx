@@ -134,6 +134,7 @@ type Row = {
   name: string;
   email: string | null;
   user_id: string | null;
+  school_student_id: string | null;
   nationality: string | null;
   passport_number: string | null;
   phone: string | null;
@@ -150,6 +151,7 @@ type Row = {
 type EditForm = {
   name: string;
   email: string;
+  school_student_id: string;
   nationality: string;
   passport_number: string;
   phone: string;
@@ -169,6 +171,7 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
       name: s.profiles?.full_name ?? "—",
       email: s.profiles?.email ?? null,
       user_id: s.user_id,
+      school_student_id: s.school_student_id ?? null,
       nationality: s.nationality ?? null,
       passport_number: s.passport_number ?? null,
       phone: s.phone ?? null,
@@ -189,6 +192,7 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
         name: a.name,
         email: a.email,
         user_id: null,
+        school_student_id: a.school_student_id ?? null,
         nationality: a.nationality ?? null,
         passport_number: a.passport_number ?? null,
         phone: a.phone ?? null,
@@ -196,13 +200,16 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
         course_level: a.courses?.name ?? null,
         course_id: a.course_id ?? null,
         language_level: null,
-        enrolled_date: a.updated_at,
+        enrolled_date: a.created_at,
         visa_status: a.visa_status ?? null,
         visa_change_date: a.visa_change_date ?? null,
         visa_last_date: a.visa_last_date ?? null,
       })),
   ]
-    .sort((a, b) => new Date(a.enrolled_date).getTime() - new Date(b.enrolled_date).getTime())
+    .sort((a, b) => {
+      const diff = new Date(a.enrolled_date).getTime() - new Date(b.enrolled_date).getTime();
+      return diff !== 0 ? diff : a.id.localeCompare(b.id);
+    })
     .map((r, i) => ({ ...r, num: i + 1 }));
 }
 
@@ -227,7 +234,7 @@ export function StudentListPanel({
 
   const [editingRow, setEditingRow] = useState<Row | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
-    name: "", email: "", nationality: "", passport_number: "", phone: "",
+    name: "", email: "", school_student_id: "", nationality: "", passport_number: "", phone: "",
     duration_months: "", course_id: "", language_level: "",
     visa_status: "", visa_change_date: "", visa_last_date: "",
   });
@@ -242,6 +249,7 @@ export function StudentListPanel({
   const [courses, setCourses] = useState<Course[]>(initialCourses ?? []);
   const [addForm, setAddForm] = useState({
     name: "", email: "", phone: "", nationality: "", passport_number: "",
+    school_student_id: "",
     course_id: "", duration_months: "", visa_status: "" as VisaStatus | "",
     visa_change_date: "", visa_last_date: "",
   });
@@ -261,7 +269,7 @@ export function StudentListPanel({
 
   function openAdd() {
     setAddError(null);
-    setAddForm({ name: "", email: "", phone: "", nationality: "", passport_number: "", course_id: "", duration_months: "", visa_status: "", visa_change_date: "", visa_last_date: "" });
+    setAddForm({ name: "", email: "", phone: "", nationality: "", passport_number: "", school_student_id: "", course_id: "", duration_months: "", visa_status: "", visa_change_date: "", visa_last_date: "" });
     setAddOpen(true);
   }
 
@@ -282,6 +290,7 @@ export function StudentListPanel({
           visa_status: (addForm.visa_status || undefined) as VisaStatus | undefined,
           visa_change_date: addForm.visa_change_date || undefined,
           visa_last_date: addForm.visa_last_date || undefined,
+          school_student_id: addForm.school_student_id || undefined,
         });
       }
     }
@@ -293,9 +302,10 @@ export function StudentListPanel({
     setSaveError(null);
     setEditingRow(row);
     setEditForm({
-      name:            row.name,
-      email:           row.email ?? "",
-      nationality:     row.nationality ?? "",
+      name:              row.name,
+      email:             row.email ?? "",
+      school_student_id: row.school_student_id ?? "",
+      nationality:       row.nationality ?? "",
       passport_number: row.passport_number ?? "",
       phone:           row.phone ?? "",
       duration_months: row.duration_months ? String(row.duration_months) : "",
@@ -331,7 +341,8 @@ export function StudentListPanel({
     if (editingRow.source === "student") {
       const studentPayload = {
         ...sharedPayload,
-        language_level: (editForm.language_level || undefined) as "beginner" | "intermediate" | "advanced" | undefined,
+        language_level:    (editForm.language_level || undefined) as "beginner" | "intermediate" | "advanced" | undefined,
+        school_student_id: editForm.school_student_id || undefined,
       };
       res = await updateStudent(editingRow.id, studentPayload);
       if (res.success && editingRow.user_id) {
@@ -348,9 +359,10 @@ export function StudentListPanel({
       const selectedCourse = courses.find((c) => c.id === editForm.course_id);
       const appPayload = {
         ...sharedPayload,
-        name:      editForm.name || undefined,
-        email:     editForm.email || undefined,
-        course_id: editForm.course_id || undefined,
+        name:              editForm.name || undefined,
+        email:             editForm.email || undefined,
+        course_id:         editForm.course_id || undefined,
+        school_student_id: editForm.school_student_id || undefined,
       };
       res = await updateApplication(editingRow.id, appPayload);
       if (appPayload.name)      updatedName        = appPayload.name;
@@ -361,8 +373,9 @@ export function StudentListPanel({
     if (res.success) {
       setRows((prev) => prev.map((r) => r.id === editingRow.id ? {
         ...r,
-        name:            updatedName,
-        email:           updatedEmail,
+        name:              updatedName,
+        email:             updatedEmail,
+        school_student_id: editForm.school_student_id || r.school_student_id,
         course_level:    updatedCourseLevel,
         course_id:       updatedCourseId,
         language_level:  updatedLangLevel,
@@ -490,6 +503,16 @@ export function StudentListPanel({
         );
       },
       size: 150,
+    }),
+    columnHelper.accessor("school_student_id", {
+      id: "school_student_id",
+      header: "Student ID",
+      cell: ({ getValue }) => (
+        <span className="text-slate-600 dark:text-slate-300 font-mono text-xs whitespace-nowrap">
+          {getValue() ?? <span className="text-slate-400 dark:text-slate-600">—</span>}
+        </span>
+      ),
+      size: 130,
     }),
     columnHelper.accessor("nationality", {
       id: "nationality",
@@ -764,6 +787,10 @@ export function StudentListPanel({
               <Input className="w-full" type="email" placeholder="e.g. john@email.com" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
+              <label className="text-sm font-medium">Student ID</label>
+              <Input className="w-full font-mono" placeholder="e.g. K202606001E" value={editForm.school_student_id} onChange={(e) => setEditForm((f) => ({ ...f, school_student_id: e.target.value.toUpperCase() }))} />
+            </div>
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">Nationality</label>
               <Input className="w-full" placeholder="e.g. Japanese" value={editForm.nationality} onChange={(e) => setEditForm((f) => ({ ...f, nationality: e.target.value }))} />
             </div>
@@ -874,6 +901,10 @@ export function StudentListPanel({
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Passport No.</label>
               <Input className="w-full" placeholder="e.g. AB123456" value={addForm.passport_number} onChange={(e) => setAddForm((f) => ({ ...f, passport_number: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Student ID</label>
+              <Input className="w-full font-mono" placeholder="e.g. K202606001E" value={addForm.school_student_id} onChange={(e) => setAddForm((f) => ({ ...f, school_student_id: e.target.value.toUpperCase() }))} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Duration (months)</label>
