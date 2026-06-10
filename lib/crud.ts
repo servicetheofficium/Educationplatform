@@ -77,6 +77,7 @@ export async function updateApplication(
     duration_months: number;
     visa_change_date: string;
     visa_last_date: string;
+    school_student_id: string;
   }>
 ) {
   const supabase = await createClient();
@@ -270,6 +271,7 @@ export async function updateStudent(
     duration_months: number;
     visa_change_date: string;
     visa_last_date: string;
+    school_student_id: string;
   }>
 ) {
   const supabase = await createClient();

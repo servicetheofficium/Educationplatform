@@ -21,6 +21,7 @@ export type Student = {
   duration_months: number | null;
   visa_change_date: string | null;
   visa_last_date: string | null;
+  school_student_id: string | null;
   created_at: string;
 };
 
@@ -61,6 +62,7 @@ export type Application = {
   duration_months: number | null;
   visa_change_date: string | null;
   visa_last_date: string | null;
+  school_student_id: string | null;
   created_at: string;
   updated_at: string;
   courses: { name: string } | null;
