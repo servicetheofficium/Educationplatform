@@ -11,9 +11,6 @@ interface CoursesSectionProps {
   courses: Course[];
 }
 
-const FALLBACK_IMAGE =
-  "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=800";
-
 const CARD_WIDTH = 340;
 const CARD_GAP = 24;
 const SCROLL_SPEED = 0.35;
@@ -28,7 +25,7 @@ function toCourseDisplayData(course: Course): CourseDisplayData {
     price: course.price,
     duration_weeks: course.duration_weeks,
     max_students: course.max_students,
-    image: course.image_url ?? FALLBACK_IMAGE,
+    image: course.image_url ?? null,
     color: course.language === "English" ? "bg-blue-100" : "bg-orange-100",
     textColor: course.language === "English" ? "text-blue-600" : "text-orange-600",
     borderColor: course.language === "English" ? "border-blue-200" : "border-orange-200",

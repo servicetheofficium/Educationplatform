@@ -11,6 +11,7 @@ import * as sheet from "@/components/ui/sheet";
 import * as table from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { createCourse, deleteCourse, updateCourse } from "@/lib/crud";
+import { createClient } from "@/utils/supabase/client";
 import type { Course } from "@/lib/types";
 import * as lucideReact from "lucide-react";
 import { motion } from "motion/react";
@@ -30,6 +31,7 @@ type CourseForm = {
   max_students: number;
   duration_weeks: number;
   price: number;
+  image_url: string;
 };
 
 const COURSES_PER_PAGE = 5;
@@ -42,6 +44,7 @@ const EMPTY_FORM: CourseForm = {
   max_students: 20,
   duration_weeks: 12,
   price: 0,
+  image_url: "",
 };
 
 export function AdminDashboard({
@@ -81,6 +84,7 @@ export function AdminDashboard({
         max_students: editingCourse.max_students,
         duration_weeks: editingCourse.duration_weeks,
         price: editingCourse.price,
+        image_url: editingCourse.image_url ?? "",
       });
     }
   }, [editingCourse]);
@@ -108,7 +112,10 @@ export function AdminDashboard({
 
   const handleCreate = async () => {
     setSaving(true);
-    const res = await createCourse(courseForm);
+    const res = await createCourse({
+      ...courseForm,
+      image_url: courseForm.image_url || null,
+    });
     if (res.success && res.data) {
       setLocalCourses((prev) => [res.data as Course, ...prev]);
       setCreateOpen(false);
@@ -119,7 +126,10 @@ export function AdminDashboard({
   const handleUpdate = async () => {
     if (!editingCourse) return;
     setSaving(true);
-    const res = await updateCourse(editingCourse.id, courseForm);
+    const res = await updateCourse(editingCourse.id, {
+      ...courseForm,
+      image_url: courseForm.image_url || null,
+    });
     if (res.success && res.data) {
       setLocalCourses((prev) =>
         prev.map((c) => (c.id === editingCourse.id ? (res.data as Course) : c))
@@ -413,6 +423,34 @@ function CourseFormFields({
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   };
 }) {
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop();
+      const fileName = `${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from("course-images")
+        .upload(fileName, file, { upsert: true });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage
+        .from("course-images")
+        .getPublicUrl(data.path);
+      setForm((prev) => ({ ...prev, image_url: publicUrl }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
   return (
     <div className="grid gap-4">
       <div className="grid grid-cols-1 gap-3">
@@ -448,6 +486,39 @@ function CourseFormFields({
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Description</label>
         <Textarea placeholder="Short course description..." rows={6} {...field("description")} />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Course Image</label>
+        {form.image_url && (
+          <div className="relative h-36 rounded-lg overflow-hidden bg-slate-100 mb-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={form.image_url} alt="preview" className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, image_url: "" }))}
+              className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors"
+            >
+              <lucideReact.X size={12} />
+            </button>
+          </div>
+        )}
+        <label className="flex items-center gap-2 px-3 py-2 border border-dashed rounded-md text-sm text-slate-500 hover:bg-slate-50 cursor-pointer transition-colors">
+          <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
+          {uploading ? (
+            <><lucideReact.Loader2 size={14} className="animate-spin" /> Uploading…</>
+          ) : (
+            <><lucideReact.Upload size={14} /> {form.image_url ? "Replace image" : "Upload from device"}</>
+          )}
+        </label>
+        {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
+        <div className="flex items-center gap-2 mt-1">
+          <div className="flex-1 h-px bg-slate-200" />
+          <span className="text-xs text-muted-foreground">or paste URL</span>
+          <div className="flex-1 h-px bg-slate-200" />
+        </div>
+        <Input placeholder="https://example.com/photo.jpg" {...field("image_url")} />
+        <p className="text-xs text-muted-foreground">Leave blank to show gradient placeholder.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4">

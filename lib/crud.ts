@@ -152,6 +152,7 @@ export async function createCourse(data: {
   max_students: number;
   duration_weeks: number;
   price: number;
+  image_url?: string | null;
 }) {
   const supabase = await createClient();
   try {
@@ -182,6 +183,7 @@ export async function updateCourse(
     max_students: number;
     duration_weeks: number;
     price: number;
+    image_url: string | null;
   }>
 ) {
   const supabase = await createClient();
