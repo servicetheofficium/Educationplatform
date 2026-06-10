@@ -15,7 +15,7 @@ export interface CourseDisplayData {
   price: number;
   duration_weeks: number;
   max_students: number;
-  image: string;
+  image: string | null;
   color: string;
   textColor: string;
   borderColor: string;
@@ -43,13 +43,18 @@ export function CourseCard({ course, onSeeDetails, index = 0 }: CourseCardProps)
       <div className="relative bg-white rounded-2xl shadow-md flex flex-col h-[450px]">
         {/* Floating image — negative margin lifts it above card */}
         <div className="mx-4 -mt-6 h-52 shrink-0 rounded-xl overflow-hidden shadow-lg shadow-brand-500/60 relative z-10">
-          <Image
-            src={course.image}
-            alt={course.name}
-            fill
-            sizes="340px"
-            className="object-cover"
-          />
+          {course.image ? (
+            <Image
+              src={course.image}
+              alt={course.name}
+              fill
+              sizes="340px"
+              className="object-cover"
+              priority={index === 0}
+            />
+          ) : (
+            <div className="h-full w-full bg-gradient-to-br from-brand-400 to-brand-700" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
           <div className="absolute bottom-3 left-3">
             <Badge className={`${course.color} ${course.textColor} border-0 text-xs font-bold px-2.5 py-0.5`}>

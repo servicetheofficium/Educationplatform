@@ -44,12 +44,16 @@ export function CourseDetailsModal({ course, onClose }: CourseDetailsModalProps)
             <div className="flex flex-col lg:flex-row overflow-y-auto">
               {/* Left — image with overlay info */}
               <div className="lg:w-5/12 relative h-56 lg:h-auto shrink-0">
-                <Image
-                  src={course.image}
-                  alt={course.name}
-                  fill
-                  className="object-cover"
-                />
+                {course.image ? (
+                  <Image
+                    src={course.image}
+                    alt={course.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-brand-400 to-brand-700" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
 
                 {/* Top badges */}
