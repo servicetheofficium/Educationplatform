@@ -113,7 +113,7 @@ export const FEATURES = [
 
 export const CONTACT_INFO = {
   address: "87 Lat Pla Khao Rd, Anusawari, Bang Khen, Bangkok 10220",
-  phone: "+66 (0) 922479309",
+  phone: "+66 92 247 9309",
   email: "knclanguageschool@gmail.com",
   hours: "Mon - Fri: 09:00 - 16:00",
   socials: [
