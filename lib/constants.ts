@@ -114,7 +114,7 @@ export const FEATURES = [
 export const CONTACT_INFO = {
   address: "87 Lat Pla Khao Rd, Anusawari, Bang Khen, Bangkok 10220",
   phone: "+66 92 247 9309",
-  email: "knclanguageschool@gmail.com",
+  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "knclanguageschool@gmail.com",
   hours: "Mon - Fri: 09:00 - 16:00",
   socials: [
     { platform: "Facebook", url: "https://www.facebook.com/share/1BHZC5EToS/?mibextid=wwXIfr" },
