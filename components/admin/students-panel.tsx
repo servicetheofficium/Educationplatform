@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Users, FileText, XCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -91,7 +91,7 @@ function formatDate(dateStr: string) {
   });
 }
 
-type Tab = "enrolled" | "applications" | "cancelled";
+type Tab = "enrolled" | "applications";
 
 export function StudentsPanel({
   onBack,
@@ -114,7 +114,6 @@ export function StudentsPanel({
 
   const [enrolledPage, setEnrolledPage] = useState(1);
   const [appsPage, setAppsPage] = useState(1);
-  const [cancelledPage, setCancelledPage] = useState(1);
 
   useEffect(() => {
     if (hasInitial) return;
@@ -138,7 +137,6 @@ export function StudentsPanel({
         setTab("enrolled");
       } else if (prev === "approved" && status !== "approved") {
         onEnrollmentChange?.(-1);
-        if (status === "cancelled") setTab("cancelled");
       }
     }
     setUpdatingId(null);
@@ -151,7 +149,8 @@ export function StudentsPanel({
     a.name.toLowerCase().includes(q) ||
     a.email.toLowerCase().includes(q) ||
     (a.phone ?? "").includes(q) ||
-    (a.courses?.name ?? "").toLowerCase().includes(q);
+    (a.courses?.name ?? "").toLowerCase().includes(q) ||
+    a.status.toLowerCase().includes(q);
 
   const matchStudent = (s: StudentWithProfile) =>
     !q ||
@@ -163,8 +162,6 @@ export function StudentsPanel({
   const pendingApps = applications.filter(
     (a) => a.status !== "approved" && a.status !== "cancelled"
   );
-  const cancelledApps = applications.filter((a) => a.status === "cancelled");
-
   type EnrolledRow =
     | { kind: "student"; data: StudentWithProfile }
     | { kind: "approved"; data: Application };
@@ -172,21 +169,16 @@ export function StudentsPanel({
     ...students.filter(matchStudent).map((s) => ({ kind: "student" as const, data: s })),
     ...approvedApps.filter(matchApp).map((a) => ({ kind: "approved" as const, data: a })),
   ];
-  const filteredPending = pendingApps.filter(matchApp);
-  const filteredCancelled = cancelledApps.filter(matchApp);
+  const STATUS_ORDER: Application["status"][] = ["pending", "contacted", "approved", "rejected"];
+  const allNonCancelledApps = applications.filter((a) => a.status !== "cancelled");
+  const filteredPending = (q ? allNonCancelledApps : pendingApps)
+    .filter(matchApp)
+    .sort((a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status));
 
   const enrolledTotalPages = Math.max(1, Math.ceil(enrolledRows.length / STUDENTS_PER_PAGE));
-  const appsTotalPages = Math.max(1, Math.ceil(filteredPending.length / STUDENTS_PER_PAGE));
-  const cancelledTotalPages = Math.max(1, Math.ceil(filteredCancelled.length / STUDENTS_PER_PAGE));
 
   const pagedEnrolled = enrolledRows.slice(
     (enrolledPage - 1) * STUDENTS_PER_PAGE, enrolledPage * STUDENTS_PER_PAGE
-  );
-  const pagedApps = filteredPending.slice(
-    (appsPage - 1) * STUDENTS_PER_PAGE, appsPage * STUDENTS_PER_PAGE
-  );
-  const pagedCancelled = filteredCancelled.slice(
-    (cancelledPage - 1) * STUDENTS_PER_PAGE, cancelledPage * STUDENTS_PER_PAGE
   );
 
 
@@ -215,7 +207,7 @@ export function StudentsPanel({
                 type="text"
                 placeholder="Search name, email, phone, course..."
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setEnrolledPage(1); setAppsPage(1); setCancelledPage(1); }}
+                onChange={(e) => { setSearch(e.target.value); setEnrolledPage(1); setAppsPage(1); }}
                 className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-white dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:ring-1 focus:ring-brand-500"
               />
             </div>
@@ -244,15 +236,6 @@ export function StudentsPanel({
                   {!loading && (
                     <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full px-2 py-0.5 text-xs">
                       {pendingApps.length}
-                    </span>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="cancelled">
-                  <XCircle size={15} />
-                  Cancelled
-                  {!loading && (
-                    <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full px-2 py-0.5 text-xs">
-                      {cancelledApps.length}
                     </span>
                   )}
                 </TabsTrigger>
@@ -335,12 +318,11 @@ export function StudentsPanel({
                 </>
               )
             ) : tab === "applications" ? (
-              pendingApps.length === 0 ? (
+              filteredPending.length === 0 ? (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-16">
                   No applications yet.
                 </p>
               ) : (
-                <>
                 <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
                 <Table>
                   <TableHeader>
@@ -354,131 +336,70 @@ export function StudentsPanel({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pagedApps.map((app) => (
-                      <TableRow key={app.id}>
-                        <TableCell className="font-medium text-slate-900 dark:text-white">
-                          {app.name}
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-300">
-                          {app.email}
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-300">
-                          {app.phone ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-600 dark:text-slate-300">
-                          {app.courses?.name ?? "—"}
-                        </TableCell>
-                        <TableCell className="text-slate-500 dark:text-slate-400 max-w-xs truncate">
-                          {app.message ?? "—"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge className={STATUS_STYLES[app.status] + " capitalize"}>
-                              {app.status}
-                            </Badge>
-                            <Select
-                              value={app.status}
-                              onValueChange={(val) =>
-                                handleStatusChange(
-                                  app.id,
-                                  (val ?? app.status) as Application["status"]
-                                )
-                              }
-                              disabled={updatingId === app.id}
-                            >
-                              <SelectTrigger className="h-7 w-28 text-xs bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="approved">Approved</SelectItem>
-                                <SelectItem value="rejected">Rejected</SelectItem>
-                                <SelectItem value="contacted">Contacted</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredPending.map((app, i) => {
+                      const prevStatus = i > 0 ? filteredPending[i - 1].status : null;
+                      const isNewGroup = !!q && app.status !== prevStatus;
+                      return (
+                        <React.Fragment key={app.id}>
+                          {isNewGroup && (
+                            <TableRow className="bg-slate-100/60 dark:bg-slate-700/40">
+                              <TableCell colSpan={6} className="py-2 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className={`w-2 h-2 rounded-full ${app.status === "pending" ? "bg-yellow-400" : app.status === "contacted" ? "bg-blue-400" : app.status === "approved" ? "bg-green-400" : "bg-red-400"}`} />
+                                  {app.status}
+                                </span>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                          <TableRow>
+                            <TableCell className="font-medium text-slate-900 dark:text-white">
+                              {app.name}
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-300">
+                              {app.email}
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-300">
+                              {app.phone ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-slate-600 dark:text-slate-300">
+                              {app.courses?.name ?? "—"}
+                            </TableCell>
+                            <TableCell className="text-slate-500 dark:text-slate-400 max-w-xs truncate">
+                              {app.message ?? "—"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Badge className={STATUS_STYLES[app.status] + " capitalize"}>
+                                  {app.status}
+                                </Badge>
+                                <Select
+                                  value={app.status}
+                                  onValueChange={(val) =>
+                                    handleStatusChange(app.id, (val ?? app.status) as Application["status"])
+                                  }
+                                  disabled={updatingId === app.id}
+                                >
+                                  <SelectTrigger className="h-7 w-28 text-xs bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="approved">Approved</SelectItem>
+                                    <SelectItem value="rejected">Rejected</SelectItem>
+                                    <SelectItem value="contacted">Contacted</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </React.Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
                 </div>
-                {pendingApps.length > STUDENTS_PER_PAGE && (
-                  <PaginationBar
-                    page={appsPage}
-                    totalPages={appsTotalPages}
-                    total={pendingApps.length}
-                    perPage={STUDENTS_PER_PAGE}
-                    onPrev={() => setAppsPage((p) => p - 1)}
-                    onNext={() => setAppsPage((p) => p + 1)}
-                  />
-                )}
-                </>
               )
-            ) : cancelledApps.length === 0 ? (
-              <p className="text-center text-slate-500 dark:text-slate-400 py-16">
-                No cancelled students.
-              </p>
-            ) : (
-              <>
-              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Cancelled On</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagedCancelled.map((app) => (
-                    <TableRow key={app.id}>
-                      <TableCell className="font-medium text-slate-900 dark:text-white">
-                        {app.name}
-                      </TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-300">
-                        {app.email}
-                      </TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-300">
-                        {app.phone ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-300">
-                        {app.courses?.name ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-slate-600 dark:text-slate-300">
-                        {formatDate(app.updated_at)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={updatingId === app.id}
-                          onClick={() => handleStatusChange(app.id, "approved")}
-                          className="text-green-400 hover:text-green-300 h-auto p-0 flex items-center gap-1 text-xs"
-                        >
-                          Re-enroll
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </div>
-              {cancelledApps.length > STUDENTS_PER_PAGE && (
-                <PaginationBar
-                  page={cancelledPage}
-                  totalPages={cancelledTotalPages}
-                  total={cancelledApps.length}
-                  perPage={STUDENTS_PER_PAGE}
-                  onPrev={() => setCancelledPage((p) => p - 1)}
-                  onNext={() => setCancelledPage((p) => p + 1)}
-                />
-              )}
-              </>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </main>
