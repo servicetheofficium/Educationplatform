@@ -22,6 +22,7 @@ export type Student = {
   visa_change_date: string | null;
   visa_last_date: string | null;
   school_student_id: string | null;
+  cancelled_at: string | null;
   created_at: string;
 };
 

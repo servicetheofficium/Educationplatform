@@ -229,6 +229,7 @@ export async function getStudents() {
     const { data, error } = await supabase
       .from("students")
       .select("*, profiles(email, full_name)")
+      .is("cancelled_at", null)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -238,6 +239,25 @@ export async function getStudents() {
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to fetch students",
+    };
+  }
+}
+
+export async function getCancelledStudents() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("students")
+      .select("*, profiles(email, full_name)")
+      .not("cancelled_at", "is", null)
+      .order("cancelled_at", { ascending: false });
+
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch cancelled students",
     };
   }
 }
@@ -274,6 +294,7 @@ export async function updateStudent(
     visa_change_date: string;
     visa_last_date: string;
     school_student_id: string;
+    cancelled_at: string | null;
   }>
 ) {
   const supabase = await createClient();

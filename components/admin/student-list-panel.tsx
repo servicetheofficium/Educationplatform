@@ -8,7 +8,7 @@ import {
   useReactTable,
   flexRender,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Users, Pencil, Trash2, Search, Plus, Download, X, ChevronsUpDown, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Pencil, XCircle, Search, Plus, Download, X, ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/ui/number-stepper";
@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import {
   getStudents, getApplications, getCourses,
-  createApplication, updateApplication, updateStudent, updateProfile, deleteStudent, deleteApplication,
+  createApplication, updateApplication, updateStudent, updateProfile,
 } from "@/lib/crud";
 import type { StudentWithProfile, Application, Course, VisaStatus } from "@/lib/types";
 
@@ -242,8 +242,8 @@ export function StudentListPanel({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [bulkCancelling, setBulkCancelling] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>(initialCourses ?? []);
@@ -610,18 +610,19 @@ export function StudentListPanel({
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedCount = selectedRows.length;
 
-  async function handleBulkDelete() {
-    setBulkDeleting(true);
+  async function handleBulkCancel() {
+    setBulkCancelling(true);
+    const now = new Date().toISOString();
     await Promise.all(selectedRows.map((row) =>
       row.original.source === "student"
-        ? deleteStudent(row.original.id)
-        : deleteApplication(row.original.id)
+        ? updateStudent(row.original.id, { cancelled_at: now })
+        : updateApplication(row.original.id, { status: "cancelled" })
     ));
-    const deletedIds = new Set(selectedRows.map((r) => r.original.id));
-    setRows((prev) => prev.filter((r) => !deletedIds.has(r.id)).map((r, i) => ({ ...r, num: i + 1 })));
+    const cancelledIds = new Set(selectedRows.map((r) => r.original.id));
+    setRows((prev) => prev.filter((r) => !cancelledIds.has(r.id)).map((r, i) => ({ ...r, num: i + 1 })));
     setRowSelection({});
-    setShowDeleteConfirm(false);
-    setBulkDeleting(false);
+    setShowCancelConfirm(false);
+    setBulkCancelling(false);
   }
 
   // Reset to first page on search change
@@ -667,10 +668,10 @@ export function StudentListPanel({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="h-7 px-2.5 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30"
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="h-7 px-2.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30"
                 >
-                  <Trash2 size={13} className="mr-1" /> Delete
+                  <XCircle size={13} className="mr-1" /> Cancel
                 </Button>
                 <button
                   onClick={() => setRowSelection({})}
@@ -856,19 +857,20 @@ export function StudentListPanel({
         </SheetContent>
       </Sheet>
 
-      {/* ── Delete Confirm Dialog ── */}
-      <Dialog open={showDeleteConfirm} onOpenChange={(o) => !o && setShowDeleteConfirm(false)}>
+      {/* ── Cancel Confirm Dialog ── */}
+      <Dialog open={showCancelConfirm} onOpenChange={(o) => !o && setShowCancelConfirm(false)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Remove Student{selectedCount > 1 ? "s" : ""}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Cancel Enrollment{selectedCount > 1 ? "s" : ""}</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">
             {selectedCount === 1
-              ? <><span>Remove </span><span className="font-semibold text-foreground">{selectedRows[0]?.original.name}</span><span>? This cannot be undone.</span></>
-              : <><span>Remove </span><span className="font-semibold text-foreground">{selectedCount} students</span><span>? This cannot be undone.</span></>
+              ? <><span>Cancel enrollment for </span><span className="font-semibold text-foreground">{selectedRows[0]?.original.name}</span><span>? They will be moved to the Cancelled list.</span></>
+              : <><span>Cancel enrollment for </span><span className="font-semibold text-foreground">{selectedCount} students</span><span>? They will be moved to the Cancelled list.</span></>
             }
           </p>
           <DialogFooter>
-            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDeleting}>
-              {bulkDeleting ? "Removing..." : "Remove"}
+            <Button variant="outline" onClick={() => setShowCancelConfirm(false)} disabled={bulkCancelling}>Keep</Button>
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleBulkCancel} disabled={bulkCancelling}>
+              {bulkCancelling ? "Cancelling..." : "Cancel Enrollment"}
             </Button>
           </DialogFooter>
         </DialogContent>

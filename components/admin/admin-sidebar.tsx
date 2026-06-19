@@ -2,7 +2,7 @@
 
 import { logout } from "@/lib/auth";
 import type { AdminUser } from "@/lib/types";
-import { BarChart3, FileText, List, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Wrench } from "lucide-react";
+import { BarChart3, FileText, List, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Wrench, UserX } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: BarChart3, exact: true },
   { href: "/admin/applications", label: "Student Applications", icon: FileText },
   { href: "/admin/students", label: "Student List", icon: List },
+  { href: "/admin/cancelled-students", label: "Student Cancel List", icon: UserX },
   { href: "/admin/services", label: "Services", icon: Wrench },
 ];
 
