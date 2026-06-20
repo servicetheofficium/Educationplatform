@@ -23,6 +23,7 @@ export type Student = {
   visa_last_date: string | null;
   school_student_id: string | null;
   cancelled_at: string | null;
+  doc_status: "pending" | "submitted" | "checked" | "completed" | null;
   created_at: string;
 };
 
@@ -64,6 +65,7 @@ export type Application = {
   visa_change_date: string | null;
   visa_last_date: string | null;
   school_student_id: string | null;
+  doc_status: "pending" | "submitted" | "checked" | "completed" | null;
   created_at: string;
   updated_at: string;
   courses: { name: string } | null;
