@@ -78,6 +78,7 @@ export async function updateApplication(
     visa_change_date: string;
     visa_last_date: string;
     school_student_id: string;
+    doc_status: "pending" | "submitted" | "checked" | "completed";
   }>
 ) {
   const supabase = await createClient();
@@ -295,6 +296,7 @@ export async function updateStudent(
     visa_last_date: string;
     school_student_id: string;
     cancelled_at: string | null;
+    doc_status: "pending" | "submitted" | "checked" | "completed";
   }>
 ) {
   const supabase = await createClient();
