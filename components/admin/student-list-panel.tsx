@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -30,6 +30,7 @@ import {
   getStudents, getApplications, getCourses,
   createApplication, updateApplication, updateStudent, updateProfile,
 } from "@/lib/crud";
+import { createClient } from "@/utils/supabase/client";
 import type { StudentWithProfile, Application, Course, VisaStatus } from "@/lib/types";
 
 const PER_PAGE = 10;
@@ -267,6 +268,29 @@ export function StudentListPanel({
     setLoading(false);
   }
 
+  const refreshData = useCallback(async () => {
+    const supabase = createClient();
+    const [{ data: s }, { data: a }, { data: c }] = await Promise.all([
+      supabase.from("students").select("*, profiles(email, full_name)").is("cancelled_at", null).order("created_at", { ascending: false }),
+      supabase.from("applications").select("*, courses(name)").order("created_at", { ascending: false }),
+      supabase.from("courses").select("*").order("created_at", { ascending: false }),
+    ]);
+    if (s && a) setRows(buildRows(s as StudentWithProfile[], a as Application[]));
+    if (c) setCourses(c as Course[]);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("admin-student-list-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "students" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, refreshData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refreshData]);
+
   function openAdd() {
     setAddError(null);
     setAddForm({ name: "", email: "", phone: "", nationality: "", passport_number: "", school_student_id: "", course_id: "", duration_months: "", visa_status: "", visa_change_date: "", visa_last_date: "" });
@@ -294,7 +318,7 @@ export function StudentListPanel({
         });
       }
     }
-    await load();
+    await refreshData();
     setAddOpen(false); setAdding(false);
   }
 
@@ -438,7 +462,9 @@ export function StudentListPanel({
       r.name.toLowerCase().includes(q) ||
       (r.nationality ?? "").toLowerCase().includes(q) ||
       (r.passport_number ?? "").toLowerCase().includes(q) ||
-      (r.phone ?? "").includes(q)
+      (r.phone ?? "").includes(q) ||
+      (r.course_level ?? "").toLowerCase().includes(q) ||
+      (r.email ?? "").toLowerCase().includes(q)
     );
   }, [rows, search]);
 
@@ -684,7 +710,7 @@ export function StudentListPanel({
             <div className="relative flex-1 min-w-44">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="Search name, nationality, passport, phone..."
+                placeholder="Search name, nationality, passport, phone, course..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-9 pl-9 bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500"

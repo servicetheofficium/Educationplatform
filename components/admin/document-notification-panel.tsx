@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Bell, Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { updateStudent, updateApplication } from "@/lib/crud";
+import { createClient } from "@/utils/supabase/client";
 import type { StudentWithProfile, Application } from "@/lib/types";
 
 const DAYS_THRESHOLD = 45;
@@ -139,6 +140,27 @@ export function DocumentNotificationPanel({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  const refreshData = useCallback(async () => {
+    const supabase = createClient();
+    const [{ data: s }, { data: a }] = await Promise.all([
+      supabase.from("students").select("*, profiles(email, full_name)").is("cancelled_at", null).order("created_at", { ascending: false }),
+      supabase.from("applications").select("*, courses(name)").eq("status", "approved").order("created_at", { ascending: false }),
+    ]);
+    if (s) setStudents(s as StudentWithProfile[]);
+    if (a) setApps(a as Application[]);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("admin-doc-notifications-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "students" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, refreshData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refreshData]);
 
   async function handleDocStatusChange(row: Row, status: DocStatus) {
     setUpdatingId(row.id);

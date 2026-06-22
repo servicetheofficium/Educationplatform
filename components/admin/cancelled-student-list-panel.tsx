@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   createColumnHelper,
   getCoreRowModel,
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateStudent, updateApplication } from "@/lib/crud";
+import { createClient } from "@/utils/supabase/client";
 import type { StudentWithProfile, Application } from "@/lib/types";
 
 const PER_PAGE = 10;
@@ -71,6 +72,25 @@ export function CancelledStudentListPanel({
   );
   const [search, setSearch] = useState("");
   const [reenrollingId, setReenrollingId] = useState<string | null>(null);
+
+  const refreshData = useCallback(async () => {
+    const supabase = createClient();
+    const [{ data: s }, { data: a }] = await Promise.all([
+      supabase.from("students").select("*, profiles(email, full_name)").not("cancelled_at", "is", null).order("cancelled_at", { ascending: false }),
+      supabase.from("applications").select("*, courses(name)").eq("status", "cancelled").order("updated_at", { ascending: false }),
+    ]);
+    if (s && a) setRows(buildRows(s as StudentWithProfile[], a as Application[]));
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("admin-cancelled-students-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "students" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, refreshData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refreshData]);
 
   function exportCSV() {
     const headers = ["Student Name", "Email", "Phone", "Passport No.", "Course / Level", "Cancelled On"];
