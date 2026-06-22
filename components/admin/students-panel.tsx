@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Users, FileText, XCircle, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getStudents, getApplications, updateApplication } from "@/lib/crud";
+import { createClient } from "@/utils/supabase/client";
 import type { StudentWithProfile, Application } from "@/lib/types";
 
 const STUDENTS_PER_PAGE = 5;
@@ -123,6 +124,27 @@ export function StudentsPanel({
       setLoading(false);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshData = useCallback(async () => {
+    const supabase = createClient();
+    const [{ data: s }, { data: a }] = await Promise.all([
+      supabase.from("students").select("*, profiles(email, full_name)").is("cancelled_at", null).order("created_at", { ascending: false }),
+      supabase.from("applications").select("*, courses(name)").order("created_at", { ascending: false }),
+    ]);
+    if (s) setStudents(s as StudentWithProfile[]);
+    if (a) setApplications(a as Application[]);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("admin-students-panel-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "students" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, refreshData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refreshData]);
 
   async function handleStatusChange(id: string, status: Application["status"]) {
     const prev = applications.find((a) => a.id === id)?.status;

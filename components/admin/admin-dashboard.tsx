@@ -28,7 +28,7 @@ import {
   Upload,
 } from "lucide-react";
 import { motion } from "motion/react";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 interface AdminDashboardProps {
   courses: Course[];
@@ -86,6 +86,21 @@ export function AdminDashboard({
     const maxPage = Math.max(1, Math.ceil(localCourses.length / COURSES_PER_PAGE));
     if (coursePage > maxPage) setCoursePage(maxPage);
   }, [localCourses.length, coursePage]);
+
+  const refreshCourses = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase.from("courses").select("*").order("created_at", { ascending: false });
+    if (data) setLocalCourses(data as Course[]);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("admin-dashboard-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, refreshCourses)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refreshCourses]);
 
   useEffect(() => {
     if (editingCourse) {
