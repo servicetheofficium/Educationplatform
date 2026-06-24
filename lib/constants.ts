@@ -120,6 +120,5 @@ export const CONTACT_INFO = {
     { platform: "Facebook", url: "https://www.facebook.com/share/1BHZC5EToS/?mibextid=wwXIfr" },
     { platform: "Instagram", url: "#" },
     { platform: "Line", url: "#" },
-    { platform: "TikTok", url: "#" },
   ],
 };
