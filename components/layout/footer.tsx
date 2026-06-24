@@ -1,5 +1,5 @@
 import { Globe } from "lucide-react";
-import { FaFacebook, FaInstagram, FaLine, FaTiktok } from "react-icons/fa6";
+import { FaFacebook, FaInstagram, FaLine } from "react-icons/fa6";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { NAV_LINKS, SCHOOL_NAME, LOGO_URL, CONTACT_INFO } from "@/lib/constants";
@@ -10,7 +10,6 @@ const SOCIAL_ICONS: Record<string, React.ReactNode> = {
   Facebook: <FaFacebook size={18} />,
   Instagram: <FaInstagram size={18} />,
   Line: <FaLine size={18} />,
-  TikTok: <FaTiktok size={18} />,
 };
 
 export function Footer() {

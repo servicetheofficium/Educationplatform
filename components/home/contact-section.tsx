@@ -52,7 +52,7 @@ export function ContactSection() {
               <div className="flex flex-col gap-3">
                 <p className="font-bold text-lg">LINE Official</p>
                 <Image
-                  src="/line-qr.jpg"
+                  src="/school-qr.png"
                   alt="LINE QR Code"
                   width={160}
                   height={160}
