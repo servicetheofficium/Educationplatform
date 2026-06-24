@@ -13,7 +13,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { createCourse, deleteCourse, updateCourse } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
 import type { Course } from "@/lib/types";
-import * as lucideReact from "lucide-react";
+import {
+  BookOpen,
+  Users,
+  BarChart3,
+  Download,
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Loader2,
+  Upload,
+} from "lucide-react";
 import { motion } from "motion/react";
 import React, { useCallback, useEffect, useState } from "react";
 
@@ -108,19 +121,19 @@ export function AdminDashboard({
     {
       label: "Total Courses",
       value: localCourses.length,
-      icon: lucideReact.BookOpen,
+      icon: BookOpen,
       color: "bg-blue-100 text-blue-600",
     },
     {
       label: "Active Students",
       value: liveStudentCount,
-      icon: lucideReact.Users,
+      icon: Users,
       color: "bg-green-100 text-green-600",
     },
     {
       label: "Total Enrollments",
       value: liveTotalCount,
-      icon: lucideReact.BarChart3,
+      icon: BarChart3,
       color: "bg-purple-100 text-purple-600",
     },
   ];
@@ -220,7 +233,7 @@ export function AdminDashboard({
           <CardHeader className="flex flex-row items-center justify-between p-8">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-500/20 rounded-lg">
-                <lucideReact.BookOpen size={24} className="text-blue-400" />
+                <BookOpen size={24} className="text-blue-400" />
               </div>
               <div>
                 <CardTitle className="text-2xl text-slate-900 dark:text-white">
@@ -245,14 +258,14 @@ export function AdminDashboard({
                   URL.revokeObjectURL(url);
                 }}
               >
-                <lucideReact.Download size={16} />
+                <Download size={16} />
                 Export CSV
               </Button>
               <Button
                 className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2"
                 onClick={() => { setCourseForm(EMPTY_FORM); setCreateOpen(true); }}
               >
-                <lucideReact.Plus size={16} />
+                <Plus size={16} />
                 Add Course
               </Button>
             </div>
@@ -303,7 +316,7 @@ export function AdminDashboard({
                             className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 h-auto p-0 flex items-center gap-1"
                             onClick={() => setEditingCourse(course)}
                           >
-                            <lucideReact.Pencil size={13} />
+                            <Pencil size={13} />
                             Edit
                           </Button>
                           <Button
@@ -312,7 +325,7 @@ export function AdminDashboard({
                             className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 h-auto p-0 flex items-center gap-1"
                             onClick={() => setDeletingCourse(course)}
                           >
-                            <lucideReact.Trash2 size={13} />
+                            <Trash2 size={13} />
                             Delete
                           </Button>
                         </div>
@@ -337,7 +350,7 @@ export function AdminDashboard({
                     disabled={coursePage === 1}
                     onClick={() => setCoursePage((p) => p - 1)}
                   >
-                    <lucideReact.ChevronLeft size={16} />
+                    <ChevronLeft size={16} />
                     Prev
                   </Button>
                   <span className="text-sm text-slate-500 dark:text-slate-400 px-2">
@@ -350,7 +363,7 @@ export function AdminDashboard({
                     onClick={() => setCoursePage((p) => p + 1)}
                   >
                     Next
-                    <lucideReact.ChevronRight size={16} />
+                    <ChevronRight size={16} />
                   </Button>
                 </div>
               </div>
@@ -514,16 +527,16 @@ function CourseFormFields({
               onClick={() => setForm((p) => ({ ...p, image_url: "" }))}
               className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1 transition-colors"
             >
-              <lucideReact.X size={12} />
+              <X size={12} />
             </button>
           </div>
         )}
         <label className="flex items-center gap-2 px-3 py-2 border border-dashed rounded-md text-sm text-slate-500 hover:bg-slate-50 cursor-pointer transition-colors">
           <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={uploading} />
           {uploading ? (
-            <><lucideReact.Loader2 size={14} className="animate-spin" /> Uploading…</>
+            <><Loader2 size={14} className="animate-spin" /> Uploading…</>
           ) : (
-            <><lucideReact.Upload size={14} /> {form.image_url ? "Replace image" : "Upload from device"}</>
+            <><Upload size={14} /> {form.image_url ? "Replace image" : "Upload from device"}</>
           )}
         </label>
         {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
