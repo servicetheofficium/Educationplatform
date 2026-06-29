@@ -36,11 +36,13 @@ import type { StudentWithProfile, Application, Course, VisaStatus } from "@/lib/
 const PER_PAGE = 10;
 
 const VISA_LABELS: Record<VisaStatus, string> = {
-  processing:       "Processing",
-  visa_changed:     "Visa Changed",
-  first_extension:  "1st Extension",
-  second_extension: "2nd Extension",
-  third_extension:  "3rd Extension",
+  processing:        "Processing",
+  visa_changed:      "Visa Changed",
+  first_extension:   "1st Extension",
+  second_extension:  "2nd Extension",
+  third_extension:   "3rd Extension",
+  fourth_extension:  "4th Extension",
+  fifth_extension:   "5th Extension",
 };
 
 function formatDate(dateStr: string) {
@@ -139,7 +141,7 @@ type Row = {
   nationality: string | null;
   passport_number: string | null;
   phone: string | null;
-  duration_months: number | null;
+  duration_months: string | null;
   course_level: string | null;
   course_id: string | null;
   language_level: "beginner" | "intermediate" | "advanced" | null;
@@ -310,7 +312,7 @@ export function StudentListPanel({
           status: "approved",
           nationality: addForm.nationality || undefined,
           passport_number: addForm.passport_number || undefined,
-          duration_months: addForm.duration_months ? Number(addForm.duration_months) : undefined,
+          duration_months: addForm.duration_months || undefined,
           visa_status: (addForm.visa_status || undefined) as VisaStatus | undefined,
           visa_change_date: addForm.visa_change_date || undefined,
           visa_last_date: addForm.visa_last_date || undefined,
@@ -332,7 +334,7 @@ export function StudentListPanel({
       nationality:       row.nationality ?? "",
       passport_number: row.passport_number ?? "",
       phone:           row.phone ?? "",
-      duration_months: row.duration_months ? String(row.duration_months) : "",
+      duration_months: row.duration_months ?? "",
       course_id:       row.course_id ?? "",
       language_level:  row.language_level ?? "",
       visa_status:     row.visa_status ?? "",
@@ -349,7 +351,7 @@ export function StudentListPanel({
       nationality:     editForm.nationality || undefined,
       passport_number: editForm.passport_number || undefined,
       phone:           editForm.phone || undefined,
-      duration_months: editForm.duration_months ? Number(editForm.duration_months) : undefined,
+      duration_months: editForm.duration_months || undefined,
       visa_status:     (editForm.visa_status || undefined) as VisaStatus | undefined,
       visa_change_date: editForm.visa_change_date || undefined,
       visa_last_date:  editForm.visa_last_date || undefined,
@@ -464,7 +466,8 @@ export function StudentListPanel({
       (r.passport_number ?? "").toLowerCase().includes(q) ||
       (r.phone ?? "").includes(q) ||
       (r.course_level ?? "").toLowerCase().includes(q) ||
-      (r.email ?? "").toLowerCase().includes(q)
+      (r.email ?? "").toLowerCase().includes(q) ||
+      (r.school_student_id ?? "").toLowerCase().includes(q)
     );
   }, [rows, search]);
 
@@ -511,7 +514,7 @@ export function StudentListPanel({
                   ["Nationality", r.nationality],
                   ["Passport No.", r.passport_number],
                   ["Phone", r.phone],
-                  ["Duration", r.duration_months ? `${r.duration_months} months` : null],
+                  ["Duration", r.duration_months || null],
                   ["Course / Level", r.course_level],
                   ["Enrolled Date", formatDate(r.enrolled_date)],
                   ["Visa Change Date", r.visa_change_date ? formatDate(r.visa_change_date) : null],
@@ -567,7 +570,7 @@ export function StudentListPanel({
     columnHelper.accessor("duration_months", {
       id: "duration_months",
       header: "Duration",
-      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300">{getValue() ? `${getValue()} mo.` : "—"}</span>,
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300">{getValue() || "—"}</span>,
       size: 72,
     }),
     columnHelper.accessor("course_level", {
@@ -830,8 +833,8 @@ export function StudentListPanel({
               <Input className="w-full" placeholder="e.g. 0812345678" value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Duration (months)</label>
-              <NumberStepper value={Number(editForm.duration_months) || 1} min={1} onChange={(v) => setEditForm((f) => ({ ...f, duration_months: String(v) }))} />
+              <label className="text-sm font-medium">Duration</label>
+              <Input className="w-full" placeholder="e.g. 5 mo. or 5+6 mo." value={editForm.duration_months} onChange={(e) => setEditForm((f) => ({ ...f, duration_months: e.target.value }))} />
             </div>
             {editingRow?.source === "application" ? (
               <div className="space-y-1.5">
@@ -935,8 +938,8 @@ export function StudentListPanel({
               <Input className="w-full font-mono" placeholder="e.g. K202606001E" value={addForm.school_student_id} onChange={(e) => setAddForm((f) => ({ ...f, school_student_id: e.target.value.toUpperCase() }))} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Duration (months)</label>
-              <NumberStepper value={Number(addForm.duration_months) || 1} min={1} onChange={(v) => setAddForm((f) => ({ ...f, duration_months: String(v) }))} />
+              <label className="text-sm font-medium">Duration</label>
+              <Input className="w-full" placeholder="e.g. 5 mo. or 5+6 mo." value={addForm.duration_months} onChange={(e) => setAddForm((f) => ({ ...f, duration_months: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Course</label>

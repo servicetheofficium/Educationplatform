@@ -73,8 +73,8 @@ export async function updateApplication(
     status: "pending" | "approved" | "rejected" | "contacted" | "cancelled";
     nationality: string;
     passport_number: string;
-    visa_status: "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension";
-    duration_months: number;
+    visa_status: "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension" | "fourth_extension" | "fifth_extension";
+    duration_months: string;
     visa_change_date: string;
     visa_last_date: string;
     school_student_id: string;
@@ -290,8 +290,8 @@ export async function updateStudent(
     language_level: "beginner" | "intermediate" | "advanced";
     nationality: string;
     passport_number: string;
-    visa_status: "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension";
-    duration_months: number;
+    visa_status: "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension" | "fourth_extension" | "fifth_extension";
+    duration_months: string;
     visa_change_date: string;
     visa_last_date: string;
     school_student_id: string;
