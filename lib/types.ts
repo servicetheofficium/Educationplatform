@@ -6,7 +6,7 @@ export type Profile = {
   created_at: string;
 };
 
-export type VisaStatus = "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension";
+export type VisaStatus = "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension" | "fourth_extension" | "fifth_extension";
 
 export type Student = {
   id: string;
@@ -18,7 +18,7 @@ export type Student = {
   nationality: string | null;
   passport_number: string | null;
   visa_status: VisaStatus | null;
-  duration_months: number | null;
+  duration_months: string | null;
   visa_change_date: string | null;
   visa_last_date: string | null;
   school_student_id: string | null;
@@ -61,7 +61,7 @@ export type Application = {
   nationality: string | null;
   passport_number: string | null;
   visa_status: VisaStatus | null;
-  duration_months: number | null;
+  duration_months: string | null;
   visa_change_date: string | null;
   visa_last_date: string | null;
   school_student_id: string | null;
