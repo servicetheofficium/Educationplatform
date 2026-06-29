@@ -139,7 +139,8 @@ export function CancelledStudentListPanel({
         r.name.toLowerCase().includes(q) ||
         (r.email ?? "").toLowerCase().includes(q) ||
         (r.phone ?? "").includes(q) ||
-        (r.course ?? "").toLowerCase().includes(q)
+        (r.course ?? "").toLowerCase().includes(q) ||
+        (r.passport_number ?? "").toLowerCase().includes(q)
     );
   }, [rows, search]);
 
