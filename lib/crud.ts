@@ -605,3 +605,100 @@ export async function deleteEnrollment(id: string) {
     };
   }
 }
+
+// ============ RECEIPTS ============
+
+function extractError(err: unknown, fallback: string): string {
+  if (!err) return fallback;
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && "message" in err) return String((err as Record<string, unknown>).message);
+  return fallback;
+}
+
+export async function getReceipts() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("receipts")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return { success: false, error: extractError(error, "Failed to fetch receipts"), data: [] };
+  }
+}
+
+export async function createReceipt(data: {
+  receipt_no: string;
+  student_name: string;
+  phone?: string | null;
+  email?: string | null;
+  passport_no?: string | null;
+  course_name: string;
+  duration?: string | null;
+  course_fee: number;
+  visa_fee: number;
+  items?: { name: string; amount: number }[] | null;
+  total_amount: number;
+  payment_method: string;
+  paid_amount: number;
+  change_amount: number;
+  staff_name?: string | null;
+}) {
+  const supabase = await createClient();
+  try {
+    const { data: row, error } = await supabase
+      .from("receipts")
+      .insert([data])
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: row };
+  } catch (error) {
+    return { success: false, error: extractError(error, "Failed to create receipt") };
+  }
+}
+
+export async function updateReceipt(id: string, data: Partial<{
+  student_name: string;
+  phone: string | null;
+  email: string | null;
+  passport_no: string | null;
+  course_name: string;
+  duration: string | null;
+  course_fee: number;
+  visa_fee: number;
+  items: { name: string; amount: number }[] | null;
+  total_amount: number;
+  payment_method: string;
+  paid_amount: number;
+  change_amount: number;
+  staff_name: string | null;
+}>) {
+  const supabase = await createClient();
+  try {
+    const { data: row, error } = await supabase
+      .from("receipts")
+      .update(data)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    return { success: true, data: row };
+  } catch (error) {
+    return { success: false, error: extractError(error, "Failed to update receipt") };
+  }
+}
+
+export async function deleteReceipt(id: string) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase.from("receipts").delete().eq("id", id);
+    if (error) throw error;
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: extractError(error, "Failed to delete receipt") };
+  }
+}
