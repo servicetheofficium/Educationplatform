@@ -100,6 +100,28 @@ export type DocumentService = {
 
 export type ServiceRequestStatus = "pending" | "processing" | "completed" | "cancelled";
 
+export type ReceiptItem = { name: string; amount: number };
+
+export type Receipt = {
+  id: string;
+  receipt_no: string;
+  student_name: string;
+  phone: string | null;
+  email: string | null;
+  passport_no: string | null;
+  course_name: string;
+  duration: string | null;
+  course_fee: number;
+  visa_fee: number;
+  items: ReceiptItem[] | null;
+  total_amount: number;
+  payment_method: string;
+  paid_amount: number;
+  change_amount: number;
+  staff_name: string | null;
+  created_at: string;
+};
+
 export type ServiceRequest = {
   id: string;
   service_id: string | null;
