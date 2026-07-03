@@ -49,6 +49,8 @@ type ReceiptForm = {
   student_name: string;
   phone: string;
   email: string;
+  passport_no: string;
+  duration: string;
   items: ReceiptItem[];
   paid_amount: number;
   payment_method: string;
@@ -59,6 +61,8 @@ const EMPTY_FORM: ReceiptForm = {
   student_name: "",
   phone: "",
   email: "",
+  passport_no: "",
+  duration: "",
   items: [],
   paid_amount: 0,
   payment_method: "Cash",
@@ -139,6 +143,8 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       student_name: r.student_name,
       phone: r.phone ?? "",
       email: r.email ?? "",
+      passport_no: r.passport_no ?? "",
+      duration: r.duration ?? "",
       items,
       paid_amount: r.paid_amount,
       payment_method: r.payment_method,
@@ -157,6 +163,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       student_name: s.profiles?.full_name ?? "",
       phone: s.phone ?? "",
       email: s.profiles?.email ?? "",
+      passport_no: s.passport_number ?? p.passport_no,
     }));
   };
 
@@ -167,6 +174,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
     setForm((p) => ({
       ...p,
       items: [...p.items, { name: c.name, amount: c.price }],
+      duration: c.duration_weeks ? `${c.duration_weeks} weeks` : p.duration,
     }));
   };
 
@@ -203,6 +211,8 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       student_name: form.student_name,
       phone: form.phone || null,
       email: form.email || null,
+      passport_no: form.passport_no || null,
+      duration: form.duration || null,
       course_name: firstItemName,
       course_fee: 0,
       visa_fee: 0,
@@ -405,6 +415,25 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                   placeholder="student@email.com"
                   value={form.email}
                   onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Passport No <span className="text-slate-400 text-xs">(not on receipt)</span></label>
+                <Input
+                  placeholder="A1234567"
+                  value={form.passport_no}
+                  onChange={(e) => setForm((p) => ({ ...p, passport_no: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Duration <span className="text-slate-400 text-xs">(not on receipt)</span></label>
+                <Input
+                  placeholder="e.g. 8 weeks"
+                  value={form.duration}
+                  onChange={(e) => setForm((p) => ({ ...p, duration: e.target.value }))}
                 />
               </div>
             </div>
