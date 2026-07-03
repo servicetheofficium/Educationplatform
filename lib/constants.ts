@@ -1,7 +1,7 @@
 import { BookOpen, GraduationCap, Globe, Clock, ShieldCheck, Heart } from "lucide-react";
 
 export const SCHOOL_NAME = "KNC Language School";
-export const LOGO_URL = "/school_logo.jpg";
+export const LOGO_URL = "/school_logo.png";
 
 export const NAV_LINKS = [
   { label: "Home", href: "#home" },
