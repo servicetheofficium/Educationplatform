@@ -121,6 +121,7 @@ export default function ReceiptPrintPage() {
           html, body { width: 80mm; margin: 0; padding: 0; background: white; }
           .receipt-page { width: 80mm; margin: 0; }
           .print-button { display: none; }
+          img { -webkit-print-color-adjust: exact; print-color-adjust: exact; image-rendering: high-quality; }
         }
       `}</style>
 
@@ -135,7 +136,7 @@ export default function ReceiptPrintPage() {
       <main className="receipt-page">
         <section className="receipt">
           <div className="center">
-            <img src="/school_logo.png" alt="KNC School" style={{ width: 90, height: 90, margin: "0 auto 6px", display: "block", objectFit: "contain" }} />
+            <img src="/school_logo.png" alt="KNC School" style={{ width: 110, height: 110, margin: "0 auto 6px", display: "block", objectFit: "contain" }} />
             <h1>KNC School</h1>
             <p>Language &amp; Education Center</p>
             <p>Bangkok, Thailand</p>
@@ -215,6 +216,7 @@ export default function ReceiptPrintPage() {
           <div className="center">
             <h3>Thank you!</h3>
             <p>Please keep this receipt.</p>
+            <p>UNTIL <b>YOU COMPLETE</b> YOUR COURSE.</p>
             <p>Email: knclanguageschool@gmail.com</p>
 
           </div>
