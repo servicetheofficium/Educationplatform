@@ -16,6 +16,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { createClient } from "@/utils/supabase/client";
 import { createReceipt, updateReceipt, deleteReceipt } from "@/lib/crud";
 import type { Receipt, ReceiptItem, StudentWithProfile, Course, DocumentService } from "@/lib/types";
@@ -54,6 +55,8 @@ type ReceiptForm = {
   items: ReceiptItem[];
   paid_amount: number;
   payment_method: string;
+  remaining_amount: number;
+  next_payment_date: string;
   staff_name: string;
 };
 
@@ -66,6 +69,8 @@ const EMPTY_FORM: ReceiptForm = {
   items: [],
   paid_amount: 0,
   payment_method: "Cash",
+  remaining_amount: 0,
+  next_payment_date: "",
   staff_name: "",
 };
 
@@ -148,6 +153,8 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       items,
       paid_amount: r.paid_amount,
       payment_method: r.payment_method,
+      remaining_amount: r.remaining_amount ?? 0,
+      next_payment_date: r.next_payment_date ?? "",
       staff_name: r.staff_name ?? "",
     });
     setEditingReceipt(r);
@@ -221,6 +228,8 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       payment_method: form.payment_method,
       paid_amount: form.paid_amount,
       change_amount: changeAmount,
+      remaining_amount: form.remaining_amount || 0,
+      next_payment_date: form.next_payment_date || null,
       staff_name: form.staff_name || null,
     };
 
@@ -539,6 +548,26 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
             <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
               <span>Change</span>
               <span className={changeAmount < 0 ? "text-red-500" : ""}>฿{changeAmount.toLocaleString()}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Remaining Amount (฿)</label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={form.remaining_amount || ""}
+                  onChange={(e) => setForm((p) => ({ ...p, remaining_amount: Number(e.target.value) }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Next Payment Date</label>
+                <DatePicker
+                  value={form.next_payment_date}
+                  onChange={(v) => setForm((p) => ({ ...p, next_payment_date: v }))}
+                  placeholder="Pick a date"
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">

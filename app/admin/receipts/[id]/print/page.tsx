@@ -124,9 +124,18 @@ export default function ReceiptPrintPage() {
         }
       `}</style>
 
+      <button
+        className="print-button"
+        style={{ position: "fixed", top: 16, left: 16, width: "auto", padding: "8px 16px", background: "#444", fontSize: 13 }}
+        onClick={() => window.location.href = "/admin/receipts"}
+      >
+        ← Back
+      </button>
+
       <main className="receipt-page">
         <section className="receipt">
           <div className="center">
+            <img src="/school_logo.jpg" alt="KNC School" style={{ width: 90, height: 90, margin: "0 auto 6px", display: "block", objectFit: "contain" }} />
             <h1>KNC School</h1>
             <p>Language &amp; Education Center</p>
             <p>Bangkok, Thailand</p>
@@ -194,6 +203,12 @@ export default function ReceiptPrintPage() {
           <div className="info-row"><span>Payment Method</span><span>{receipt.payment_method}</span></div>
           <div className="info-row"><span>Paid Amount</span><span>{fmt(receipt.paid_amount)}</span></div>
           <div className="info-row"><span>Change</span><span>{fmt(change)}</span></div>
+          {receipt.remaining_amount > 0 && (
+            <div className="info-row"><span>Remaining Amount</span><span>{fmt(receipt.remaining_amount)}</span></div>
+          )}
+          {receipt.next_payment_date && (
+            <div className="info-row"><span>Next Payment Date</span><span>{new Date(receipt.next_payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span></div>
+          )}
 
           <div className="line" />
 
@@ -201,6 +216,21 @@ export default function ReceiptPrintPage() {
             <h3>Thank you!</h3>
             <p>Please keep this receipt.</p>
             <p>Email: knclanguageschool@gmail.com</p>
+
+          </div>
+
+          <div className="line" />
+
+          <p style={{ fontSize: 7.5, lineHeight: 1.45, color: "#333", marginBottom: 6 }}>
+            All payments are non-refundable under any circumstances. Visa and Immigration fees are not included. Visa approval, visa extension, and change of visa status are solely at the discretion of the Thai Immigration Bureau. The School does not guarantee any visa approval or extension. Payment confirms that the student has read and accepted the School&apos;s Terms and Conditions. The student consents to the School collecting, using, storing, and disclosing personal data as necessary for enrollment, educational services, visa processing, communication, legal compliance, and other purposes in accordance with the School&apos;s Privacy Policy and applicable data protection laws.
+          </p>
+          <p style={{ fontSize: 7.5, lineHeight: 1.45, color: "#333" }}>
+            The student acknowledges and consents to the collection, use, storage, and disclosure of personal data by the School solely for educational administration, visa and immigration procedures, legal compliance, and communication with relevant government authorities, in accordance with the School&apos;s Privacy Policy and the Personal Data Protection Act (PDPA) of Thailand.
+          </p>
+
+          <div className="line" />
+
+          <div className="center">
             <p>--- We wish you a great day! ---</p>
           </div>
         </section>

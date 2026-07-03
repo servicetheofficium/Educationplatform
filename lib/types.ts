@@ -118,6 +118,8 @@ export type Receipt = {
   payment_method: string;
   paid_amount: number;
   change_amount: number;
+  remaining_amount: number;
+  next_payment_date: string | null;
   staff_name: string | null;
   created_at: string;
 };
