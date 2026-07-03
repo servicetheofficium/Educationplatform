@@ -1,29 +1,24 @@
 <svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="100" cy="100" r="95" fill="none" stroke="black" stroke-width="2"/>
+  <circle cx="100" cy="100" r="95" fill="white" stroke="black" stroke-width="2"/>
   <circle cx="100" cy="100" r="85" fill="none" stroke="black" stroke-width="1"/>
-  
-  <!-- "KNC" in the center -->
-  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="48" fill="black">KNC</text>
-  
-  <!-- Path for TOP text (Thai) -->
-  <path id="topPath" d="M 25,100 A 75,75 0 0,1 175,100" fill="none" />
+
+  <!-- KNC center -->
+  <text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-weight="bold" font-size="48" fill="black">KNC</text>
+
+  <!-- Top arc path (left → right, sweeping upward) -->
+  <path id="topArc" d="M 22,100 A 78,78 0 0,1 178,100" fill="none"/>
   <text font-family="Arial, sans-serif" font-size="12" fill="black">
-    <textPath href="#topPath" startOffset="50%" text-anchor="middle">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">
       โรงเรียนสอนภาษาเคเอ็นซี
     </textPath>
   </text>
-  
-  <!-- Path for BOTTOM text -->
-  <path id="bottomPath" d="M 25,100 A 75,75 0 0,0 175,100" fill="none" />
+
+  <!-- Bottom arc path (right → left, sweeping downward = CW through bottom) -->
+  <!-- Text reads left-to-right by reversing path direction, then centering -->
+  <path id="bottomArc" d="M 178,100 A 78,78 0 0,1 22,100" fill="none"/>
   <text font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="black">
-    <textPath href="#bottomPath" startOffset="50%" text-anchor="middle" side="left">
+    <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">
       KNC LANGUAGE SCHOOL
-    </textPath>
-  </text>
-  
-  <text font-family="Arial, sans-serif" font-size="8" fill="black">
-    <textPath href="#bottomPath" startOffset="50%" dy="12" text-anchor="middle">
-      เขตบางเขน กรุงเทพมหานคร
     </textPath>
   </text>
 </svg>
