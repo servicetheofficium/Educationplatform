@@ -34,6 +34,7 @@ interface AdminDashboardProps {
   courses: Course[];
   activeStudentCount: number;
   totalEnrollmentCount: number;
+  adminName?: string;
 }
 
 type CourseForm = {
@@ -64,6 +65,7 @@ export function AdminDashboard({
   courses,
   activeStudentCount,
   totalEnrollmentCount,
+  adminName,
 }: AdminDashboardProps) {
   const [localCourses, setLocalCourses] = useState<Course[]>(courses);
   const [liveStudentCount] = useState(activeStudentCount);
@@ -192,6 +194,11 @@ export function AdminDashboard({
 
   return (
     <main className="px-8 py-10 overflow-auto">
+      {adminName && (
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white mb-8">
+          Welcome back, {adminName}
+        </h1>
+      )}
       <div className="grid md:grid-cols-3 gap-6 mb-12">
         {stats.map((stat, index) => {
           const Icon = stat.icon;

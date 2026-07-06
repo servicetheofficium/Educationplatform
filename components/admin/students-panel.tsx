@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getStudents, getApplications, updateApplication } from "@/lib/crud";
+import { getStudents, getApplications, updateApplication, updateStudent } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
 import type { StudentWithProfile, Application } from "@/lib/types";
 
@@ -128,7 +128,7 @@ export function StudentsPanel({
   const refreshData = useCallback(async () => {
     const supabase = createClient();
     const [{ data: s }, { data: a }] = await Promise.all([
-      supabase.from("students").select("*, profiles(email, full_name)").is("cancelled_at", null).order("created_at", { ascending: false }),
+      supabase.from("students").select("*, profiles(email, full_name), student_courses(status, created_at, courses(name, language, level))").is("cancelled_at", null).order("created_at", { ascending: false }),
       supabase.from("applications").select("*, courses(name)").order("created_at", { ascending: false }),
     ]);
     if (s) setStudents(s as StudentWithProfile[]);
@@ -157,9 +157,20 @@ export function StudentsPanel({
       if (status === "approved" && prev !== "approved") {
         onEnrollmentChange?.(1);
         setTab("enrolled");
+        await refreshData();
       } else if (prev === "approved" && status !== "approved") {
         onEnrollmentChange?.(-1);
       }
+    }
+    setUpdatingId(null);
+  }
+
+  async function handleCancelStudent(id: string) {
+    setUpdatingId(id);
+    const res = await updateStudent(id, { cancelled_at: new Date().toISOString() });
+    if (res.success) {
+      setStudents((prev) => prev.filter((s) => s.id !== id));
+      onEnrollmentChange?.(-1);
     }
     setUpdatingId(null);
   }
@@ -176,21 +187,14 @@ export function StudentsPanel({
 
   const matchStudent = (s: StudentWithProfile) =>
     !q ||
-    (s.profiles?.full_name ?? "").toLowerCase().includes(q) ||
-    (s.profiles?.email ?? "").toLowerCase().includes(q) ||
+    (s.profiles?.full_name ?? s.name ?? "").toLowerCase().includes(q) ||
+    (s.profiles?.email ?? s.email ?? "").toLowerCase().includes(q) ||
     (s.phone ?? "").includes(q);
 
-  const approvedApps = applications.filter((a) => a.status === "approved");
   const pendingApps = applications.filter(
     (a) => a.status !== "approved" && a.status !== "cancelled"
   );
-  type EnrolledRow =
-    | { kind: "student"; data: StudentWithProfile }
-    | { kind: "approved"; data: Application };
-  const enrolledRows: EnrolledRow[] = [
-    ...students.filter(matchStudent).map((s) => ({ kind: "student" as const, data: s })),
-    ...approvedApps.filter(matchApp).map((a) => ({ kind: "approved" as const, data: a })),
-  ];
+  const enrolledRows = students.filter(matchStudent);
   const STATUS_ORDER: Application["status"][] = ["pending", "contacted", "approved", "rejected"];
   const allNonCancelledApps = applications.filter((a) => a.status !== "cancelled");
   const filteredPending = (q ? allNonCancelledApps : pendingApps)
@@ -248,7 +252,7 @@ export function StudentsPanel({
                   Enrolled Students
                   {!loading && (
                     <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full px-2 py-0.5 text-xs">
-                      {students.length + approvedApps.length}
+                      {students.length}
                     </span>
                   )}
                 </TabsTrigger>
@@ -271,7 +275,7 @@ export function StudentsPanel({
                 <div className="w-6 h-6 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
               </div>
             ) : tab === "enrolled" ? (
-              students.length === 0 && approvedApps.length === 0 ? (
+              students.length === 0 ? (
                 <p className="text-center text-slate-500 dark:text-slate-400 py-16">
                   No enrolled students yet.
                 </p>
@@ -290,40 +294,33 @@ export function StudentsPanel({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pagedEnrolled.map((row) =>
-                      row.kind === "student" ? (
-                        <TableRow key={row.data.id}>
-                          <TableCell className="font-medium text-slate-900 dark:text-white">{row.data.profiles?.full_name ?? "—"}</TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-300">{row.data.profiles?.email ?? "—"}</TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-300">{row.data.phone ?? "—"}</TableCell>
-                          <TableCell>
-                            <Badge className="bg-blue-500/20 text-blue-300 border-0 capitalize">{row.data.language_level}</Badge>
-                          </TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-300">{formatDate(row.data.enrollment_date)}</TableCell>
-                          <TableCell><span className="text-slate-400 dark:text-slate-500 text-xs">—</span></TableCell>
-                        </TableRow>
-                      ) : (
-                        <TableRow key={row.data.id}>
-                          <TableCell className="font-medium text-slate-900 dark:text-white">{row.data.name}</TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-300">{row.data.email}</TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-300">{row.data.phone ?? "—"}</TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-300">{row.data.courses?.name ?? "—"}</TableCell>
-                          <TableCell className="text-slate-600 dark:text-slate-300">{formatDate(row.data.updated_at)}</TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={updatingId === row.data.id}
-                              onClick={() => handleStatusChange(row.data.id, "cancelled")}
-                              className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1 text-xs"
-                            >
-                              <XCircle size={13} />
-                              Cancel
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    )}
+                    {pagedEnrolled.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium text-slate-900 dark:text-white">{s.profiles?.full_name ?? s.name ?? "—"}</TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-300">{s.profiles?.email ?? s.email ?? "—"}</TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-300">{s.phone ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge className="bg-blue-500/20 text-blue-300 border-0">
+                            {s.student_courses?.[0]?.courses
+                              ? s.student_courses[0].courses.name
+                              : <span className="capitalize">{s.language_level}</span>}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-slate-600 dark:text-slate-300">{formatDate(s.enrollment_date)}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={updatingId === s.id}
+                            onClick={() => handleCancelStudent(s.id)}
+                            className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1 text-xs"
+                          >
+                            <XCircle size={13} />
+                            Cancel
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
                 </div>

@@ -2,7 +2,7 @@
 
 import { logout } from "@/lib/auth";
 import type { AdminUser } from "@/lib/types";
-import { BarChart3, FileText, List, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Wrench, UserX, Bell, Receipt } from "lucide-react";
+import { BarChart3, FileText, List, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Wrench, UserX, Bell, Receipt, History } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -15,6 +15,7 @@ const navItems = [
   { href: "/admin/document-notifications", label: "Document Submit Notification", icon: Bell },
   { href: "/admin/services", label: "Services", icon: Wrench },
   { href: "/admin/receipts", label: "Receipts", icon: Receipt },
+  { href: "/admin/activity-log", label: "Activity Log", icon: History },
 ];
 
 export function AdminSidebar({ user }: { user: AdminUser }) {
@@ -32,7 +33,7 @@ export function AdminSidebar({ user }: { user: AdminUser }) {
         {open && (
           <div>
             <h1 className="text-xl font-display font-bold text-white">KNC Admin</h1>
-            <p className="text-slate-400 text-xs mt-1 truncate">{user.full_name}</p>
+            <p className="text-slate-400 text-xs mt-1 truncate">{user.full_name || user.email}</p>
           </div>
         )}
         <button

@@ -10,7 +10,10 @@ export type VisaStatus = "processing" | "visa_changed" | "first_extension" | "se
 
 export type Student = {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  name: string | null;
+  email: string | null;
+  application_id: string | null;
   enrollment_date: string;
   phone: string;
   address: string;
@@ -74,9 +77,10 @@ export type Application = {
 export type StudentWithProfile = Student & {
   profiles: { email: string; full_name: string } | null;
   student_courses?: {
+    id: string;
     status: "active" | "completed" | "dropped";
     created_at: string;
-    courses: { name: string; language: string } | null;
+    courses: { id: string; name: string; language: string; level: "beginner" | "intermediate" | "advanced" } | null;
   }[] | null;
 };
 
@@ -145,4 +149,15 @@ export type ServiceRequest = {
   price_thb: number;
   created_at: string;
   updated_at: string;
+};
+
+export type AdminActivityLog = {
+  id: string;
+  admin_id: string | null;
+  admin_name: string | null;
+  action: "create" | "update" | "delete";
+  target_table: string;
+  target_id: string | null;
+  details: Record<string, unknown> | null;
+  created_at: string;
 };
