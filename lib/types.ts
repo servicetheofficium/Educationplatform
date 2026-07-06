@@ -68,11 +68,16 @@ export type Application = {
   doc_status: "pending" | "submitted" | "checked" | "completed" | null;
   created_at: string;
   updated_at: string;
-  courses: { name: string } | null;
+  courses: { name: string; language: string } | null;
 };
 
 export type StudentWithProfile = Student & {
   profiles: { email: string; full_name: string } | null;
+  student_courses?: {
+    status: "active" | "completed" | "dropped";
+    created_at: string;
+    courses: { name: string; language: string } | null;
+  }[] | null;
 };
 
 export interface AdminUser {
