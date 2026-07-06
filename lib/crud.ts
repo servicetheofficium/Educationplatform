@@ -4,6 +4,56 @@ import { after } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { sendAdminApplicationNotification, sendAdminServiceRequestNotification } from "@/lib/email";
 
+// ============ ACTIVITY LOG ============
+
+function logAdminActivity(
+  action: "create" | "update" | "delete",
+  target_table: string,
+  target_id: string | null,
+  details?: Record<string, unknown> | null
+) {
+  after(async () => {
+    try {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+      await supabase.from("admin_activity_log").insert([{
+        admin_id: user.id,
+        admin_name: profile?.full_name ?? null,
+        action,
+        target_table,
+        target_id,
+        details: details ?? null,
+      }]);
+    } catch (err) {
+      console.error("[audit] Failed to log admin activity:", err);
+    }
+  });
+}
+
+export async function getAdminActivityLog() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("admin_activity_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch activity log",
+    };
+  }
+}
+
 // ============ APPLICATIONS ============
 
 export async function createApplication(data: {
@@ -15,9 +65,11 @@ export async function createApplication(data: {
 }) {
   const supabase = await createClient();
   try {
-    const { error } = await supabase.from("applications").insert([data]);
+    const { data: inserted, error } = await supabase.from("applications").insert([data]).select("id").single();
 
     if (error) throw error;
+
+    logAdminActivity("create", "applications", inserted?.id ?? null, data);
 
     after(async () => {
       try {
@@ -62,6 +114,77 @@ export async function getApplications() {
   }
 }
 
+// Approving an application should produce a real `students` row (and enrollment),
+// not just a status flag — otherwise `students`/`student_courses` stay empty forever.
+// Applicants never have a login account, so this is keyed off `application_id`
+// instead of `user_id`, and is idempotent (safe to call again on re-approval).
+async function ensureStudentFromApplication(app: {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  course_id: string | null;
+  nationality: string | null;
+  passport_number: string | null;
+  visa_status: string | null;
+  duration_months: string | null;
+  visa_change_date: string | null;
+  visa_last_date: string | null;
+  school_student_id: string | null;
+  doc_status: string | null;
+}) {
+  const supabase = await createClient();
+
+  const { data: existing } = await supabase
+    .from("students")
+    .select("id")
+    .eq("application_id", app.id)
+    .maybeSingle();
+
+  let studentId: string = existing?.id;
+
+  if (!studentId) {
+    const { data: student, error } = await supabase
+      .from("students")
+      .insert([{
+        application_id: app.id,
+        name: app.name,
+        email: app.email,
+        phone: app.phone,
+        nationality: app.nationality,
+        passport_number: app.passport_number,
+        visa_status: app.visa_status,
+        duration_months: app.duration_months,
+        visa_change_date: app.visa_change_date,
+        visa_last_date: app.visa_last_date,
+        school_student_id: app.school_student_id,
+        doc_status: app.doc_status,
+      }])
+      .select("id")
+      .single();
+    if (error) throw error;
+    studentId = student.id;
+    logAdminActivity("create", "students", studentId, { application_id: app.id });
+  }
+
+  if (app.course_id) {
+    const { data: existingEnrollment } = await supabase
+      .from("student_courses")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("course_id", app.course_id)
+      .maybeSingle();
+
+    if (!existingEnrollment) {
+      const { error: enrollError } = await supabase
+        .from("student_courses")
+        .insert([{ student_id: studentId, course_id: app.course_id, status: "active" }]);
+      if (enrollError) throw enrollError;
+      logAdminActivity("create", "student_courses", studentId, { course_id: app.course_id });
+    }
+  }
+}
+
 export async function updateApplication(
   id: string,
   data: Partial<{
@@ -91,6 +214,16 @@ export async function updateApplication(
       .single();
 
     if (error) throw error;
+    logAdminActivity("update", "applications", id, data);
+
+    if (result.status === "approved") {
+      try {
+        await ensureStudentFromApplication(result);
+      } catch (syncError) {
+        console.error("[students] Failed to sync student record from application:", syncError);
+      }
+    }
+
     return { success: true, data: result };
   } catch (error) {
     return {
@@ -112,6 +245,7 @@ export async function deleteApplication(id: string) {
       .eq("id", id);
 
     if (error) throw error;
+    logAdminActivity("delete", "applications", id);
     return { success: true };
   } catch (error) {
     return {
@@ -164,6 +298,7 @@ export async function createCourse(data: {
       .single();
 
     if (error) throw error;
+    logAdminActivity("create", "courses", result.id, data);
     return { success: true, data: result };
   } catch (error) {
     return {
@@ -197,6 +332,7 @@ export async function updateCourse(
       .single();
 
     if (error) throw error;
+    logAdminActivity("update", "courses", id, data);
     return { success: true, data: result };
   } catch (error) {
     return {
@@ -212,6 +348,7 @@ export async function deleteCourse(id: string) {
   try {
     const { error } = await supabase.from("courses").delete().eq("id", id);
     if (error) throw error;
+    logAdminActivity("delete", "courses", id);
     return { success: true };
   } catch (error) {
     return {
@@ -229,7 +366,7 @@ export async function getStudents() {
   try {
     const { data, error } = await supabase
       .from("students")
-      .select("*, profiles(email, full_name), student_courses(status, created_at, courses(name, language))")
+      .select("*, profiles(email, full_name), student_courses(id, status, created_at, courses(id, name, language, level))")
       .is("cancelled_at", null)
       .order("created_at", { ascending: false });
 
@@ -276,6 +413,7 @@ export async function updateProfile(
       .select()
       .single();
     if (error) throw error;
+    logAdminActivity("update", "profiles", userId, data);
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to update profile" };
@@ -309,6 +447,7 @@ export async function updateStudent(
       .single();
 
     if (error) throw error;
+    logAdminActivity("update", "students", id, data);
     return { success: true, data: result };
   } catch (error) {
     return {
@@ -324,6 +463,7 @@ export async function deleteStudent(id: string) {
   try {
     const { error } = await supabase.from("students").delete().eq("id", id);
     if (error) throw error;
+    logAdminActivity("delete", "students", id);
     return { success: true };
   } catch (error) {
     return {
@@ -370,6 +510,7 @@ export async function createDocumentService(data: {
       .select()
       .single();
     if (error) throw error;
+    logAdminActivity("create", "document_services", result.id, data);
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to create service" };
@@ -400,6 +541,7 @@ export async function updateDocumentService(
       .select()
       .single();
     if (error) throw error;
+    logAdminActivity("update", "document_services", id, data);
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to update service" };
@@ -411,6 +553,7 @@ export async function deleteDocumentService(id: string) {
   try {
     const { error } = await supabase.from("document_services").delete().eq("id", id);
     if (error) throw error;
+    logAdminActivity("delete", "document_services", id);
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to delete service" };
@@ -454,6 +597,7 @@ export async function createServiceRequest(data: {
       .select()
       .single();
     if (error) throw error;
+    logAdminActivity("create", "service_requests", result.id, data);
     after(async () => {
       try {
         await sendAdminServiceRequestNotification({
@@ -495,6 +639,7 @@ export async function updateServiceRequest(
       .select()
       .single();
     if (error) throw error;
+    logAdminActivity("update", "service_requests", id, data);
     return { success: true, data: result };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to update service request" };
@@ -506,6 +651,7 @@ export async function deleteServiceRequest(id: string) {
   try {
     const { error } = await supabase.from("service_requests").delete().eq("id", id);
     if (error) throw error;
+    logAdminActivity("delete", "service_requests", id);
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Failed to delete service request" };
@@ -547,6 +693,7 @@ export async function createEnrollment(data: {
       .single();
 
     if (error) throw error;
+    logAdminActivity("create", "student_courses", result.id, data);
     return { success: true, data: result };
   } catch (error) {
     return {
@@ -573,6 +720,7 @@ export async function updateEnrollment(
       .single();
 
     if (error) throw error;
+    logAdminActivity("update", "student_courses", id, { status });
     return { success: true, data };
   } catch (error) {
     return {
@@ -594,6 +742,7 @@ export async function deleteEnrollment(id: string) {
       .eq("id", id);
 
     if (error) throw error;
+    logAdminActivity("delete", "student_courses", id);
     return { success: true };
   } catch (error) {
     return {
@@ -655,6 +804,7 @@ export async function createReceipt(data: {
       .select()
       .single();
     if (error) throw error;
+    logAdminActivity("create", "receipts", row.id, data);
     return { success: true, data: row };
   } catch (error) {
     return { success: false, error: extractError(error, "Failed to create receipt") };
@@ -686,6 +836,7 @@ export async function updateReceipt(id: string, data: Partial<{
       .select()
       .single();
     if (error) throw error;
+    logAdminActivity("update", "receipts", id, data);
     return { success: true, data: row };
   } catch (error) {
     return { success: false, error: extractError(error, "Failed to update receipt") };
@@ -697,6 +848,7 @@ export async function deleteReceipt(id: string) {
   try {
     const { error } = await supabase.from("receipts").delete().eq("id", id);
     if (error) throw error;
+    logAdminActivity("delete", "receipts", id);
     return { success: true };
   } catch (error) {
     return { success: false, error: extractError(error, "Failed to delete receipt") };

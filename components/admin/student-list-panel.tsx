@@ -30,6 +30,7 @@ import {
 import {
   getStudents, getApplications, getCourses,
   createApplication, updateApplication, updateStudent, updateProfile,
+  createEnrollment, deleteEnrollment,
 } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
 import type { StudentWithProfile, Application, Course, VisaStatus } from "@/lib/types";
@@ -48,6 +49,15 @@ const VISA_LABELS: Record<VisaStatus, string> = {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function courseLevelLabel(course: { name: string; level: string } | null, fallbackLevel: string | null) {
+  if (course) return course.name;
+  return fallbackLevel ? capitalize(fallbackLevel) : null;
 }
 
 function SearchableSelect({
@@ -153,6 +163,7 @@ type Row = {
   duration_months: string | null;
   course_level: string | null;
   course_id: string | null;
+  enrollment_id: string | null;
   language_level: "beginner" | "intermediate" | "advanced" | null;
   language: string | null;
   enrolled_date: string;
@@ -176,30 +187,32 @@ type EditForm = {
   visa_last_date: string;
 };
 
-function currentCourse(sc: StudentWithProfile["student_courses"]) {
+function currentEnrollment(sc: StudentWithProfile["student_courses"]) {
   if (!sc || sc.length === 0) return null;
   const active = sc.filter((e) => e.status === "active");
   const pool = active.length > 0 ? active : sc;
-  return pool.reduce((latest, e) => (new Date(e.created_at) > new Date(latest.created_at) ? e : latest)).courses;
+  return pool.reduce((latest, e) => (new Date(e.created_at) > new Date(latest.created_at) ? e : latest));
 }
 
-function buildRows(students: StudentWithProfile[], applications: Application[]): Row[] {
-  return [
-    ...students.map((s) => {
-      const course = currentCourse(s.student_courses);
+function buildRows(students: StudentWithProfile[]): Row[] {
+  return students
+    .map((s) => {
+      const enrollment = currentEnrollment(s.student_courses);
+      const course = enrollment?.courses ?? null;
       return {
         id: s.id,
         source: "student" as RowSource,
-        name: s.profiles?.full_name ?? "—",
-        email: s.profiles?.email ?? null,
+        name: s.profiles?.full_name ?? s.name ?? "—",
+        email: s.profiles?.email ?? s.email ?? null,
         user_id: s.user_id,
         school_student_id: s.school_student_id ?? null,
         nationality: s.nationality ?? null,
         passport_number: s.passport_number ?? null,
         phone: s.phone ?? null,
         duration_months: s.duration_months ?? null,
-        course_level: s.language_level ?? null,
-        course_id: null,
+        course_level: courseLevelLabel(course, s.language_level),
+        course_id: course?.id ?? null,
+        enrollment_id: enrollment?.id ?? null,
         language_level: s.language_level ?? null,
         language: course?.language ?? null,
         enrolled_date: s.enrollment_date,
@@ -207,30 +220,7 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
         visa_change_date: s.visa_change_date ?? null,
         visa_last_date: s.visa_last_date ?? null,
       };
-    }),
-    ...applications
-      .filter((a) => a.status === "approved")
-      .map((a) => ({
-        id: a.id,
-        source: "application" as RowSource,
-        name: a.name,
-        email: a.email,
-        user_id: null,
-        school_student_id: a.school_student_id ?? null,
-        nationality: a.nationality ?? null,
-        passport_number: a.passport_number ?? null,
-        phone: a.phone ?? null,
-        duration_months: a.duration_months ?? null,
-        course_level: a.courses?.name ?? null,
-        course_id: a.course_id ?? null,
-        language_level: null,
-        language: a.courses?.language ?? null,
-        enrolled_date: a.created_at,
-        visa_status: a.visa_status ?? null,
-        visa_change_date: a.visa_change_date ?? null,
-        visa_last_date: a.visa_last_date ?? null,
-      })),
-  ]
+    })
     .sort((a, b) => {
       const diff = new Date(a.enrolled_date).getTime() - new Date(b.enrolled_date).getTime();
       return diff !== 0 ? diff : a.id.localeCompare(b.id);
@@ -243,16 +233,14 @@ const columnHelper = createColumnHelper<Row>();
 
 export function StudentListPanel({
   initialStudents,
-  initialApplications,
   initialCourses,
 }: {
   initialStudents?: StudentWithProfile[];
-  initialApplications?: Application[];
   initialCourses?: Course[];
 } = {}) {
   const hasInitial = initialStudents !== undefined;
   const [rows, setRows] = useState<Row[]>(() =>
-    hasInitial ? buildRows(initialStudents!, initialApplications ?? []) : []
+    hasInitial ? buildRows(initialStudents!) : []
   );
   const [loading, setLoading] = useState(!hasInitial);
   const [search, setSearch] = useState("");
@@ -285,22 +273,20 @@ export function StudentListPanel({
   useEffect(() => { if (!hasInitial) load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
-    const [s, a, c] = await Promise.all([getStudents(), getApplications(), getCourses()]);
+    const [s, c] = await Promise.all([getStudents(), getCourses()]);
     const students = s.success ? (s.data as StudentWithProfile[]) : [];
-    const apps = a.success ? (a.data as Application[]) : [];
     if (c.success) setCourses(c.data as Course[]);
-    setRows(buildRows(students, apps));
+    setRows(buildRows(students));
     setLoading(false);
   }
 
   const refreshData = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: s }, { data: a }, { data: c }] = await Promise.all([
-      supabase.from("students").select("*, profiles(email, full_name), student_courses(status, created_at, courses(name, language))").is("cancelled_at", null).order("created_at", { ascending: false }),
-      supabase.from("applications").select("*, courses(name, language)").order("created_at", { ascending: false }),
+    const [{ data: s }, { data: c }] = await Promise.all([
+      supabase.from("students").select("*, profiles(email, full_name), student_courses(id, status, created_at, courses(id, name, language, level))").is("cancelled_at", null).order("created_at", { ascending: false }),
       supabase.from("courses").select("*").order("created_at", { ascending: false }),
     ]);
-    if (s && a) setRows(buildRows(s as StudentWithProfile[], a as Application[]));
+    if (s) setRows(buildRows(s as StudentWithProfile[]));
     if (c) setCourses(c as Course[]);
   }, []);
 
@@ -391,38 +377,33 @@ export function StudentListPanel({
     let updatedEmail = editingRow.email;
     let updatedCourseLevel = editingRow.course_level;
     let updatedCourseId    = editingRow.course_id;
+    let updatedEnrollmentId = editingRow.enrollment_id;
     let updatedLangLevel   = editingRow.language_level;
 
-    if (editingRow.source === "student") {
-      const studentPayload = {
-        ...sharedPayload,
-        language_level:    (editForm.language_level || undefined) as "beginner" | "intermediate" | "advanced" | undefined,
-        school_student_id: editForm.school_student_id || undefined,
-      };
-      res = await updateStudent(editingRow.id, studentPayload);
-      if (res.success && editingRow.user_id) {
-        const profilePayload: { full_name?: string; email?: string } = {};
-        if (editForm.name && editForm.name !== editingRow.name) profilePayload.full_name = editForm.name;
-        if (editForm.email && editForm.email !== editingRow.email) profilePayload.email = editForm.email;
-        if (Object.keys(profilePayload).length > 0) await updateProfile(editingRow.user_id, profilePayload);
-        if (profilePayload.full_name) updatedName  = profilePayload.full_name;
-        if (profilePayload.email)     updatedEmail = profilePayload.email;
-      }
-      updatedLangLevel   = (editForm.language_level as typeof updatedLangLevel) || null;
-      updatedCourseLevel = editForm.language_level || editingRow.course_level;
-    } else {
-      const selectedCourse = courses.find((c) => c.id === editForm.course_id);
-      const appPayload = {
-        ...sharedPayload,
-        name:              editForm.name || undefined,
-        email:             editForm.email || undefined,
-        course_id:         editForm.course_id || undefined,
-        school_student_id: editForm.school_student_id || undefined,
-      };
-      res = await updateApplication(editingRow.id, appPayload);
-      if (appPayload.name)      updatedName        = appPayload.name;
-      if (appPayload.email)     updatedEmail       = appPayload.email;
-      if (appPayload.course_id) { updatedCourseId  = appPayload.course_id; updatedCourseLevel = selectedCourse?.name ?? editingRow.course_level; }
+    const selectedCourse = courses.find((c) => c.id === editForm.course_id);
+    const studentPayload = {
+      ...sharedPayload,
+      language_level:    (selectedCourse?.level ?? editForm.language_level ?? undefined) as "beginner" | "intermediate" | "advanced" | undefined,
+      school_student_id: editForm.school_student_id || undefined,
+    };
+    res = await updateStudent(editingRow.id, studentPayload);
+    if (res.success && editingRow.user_id) {
+      const profilePayload: { full_name?: string; email?: string } = {};
+      if (editForm.name && editForm.name !== editingRow.name) profilePayload.full_name = editForm.name;
+      if (editForm.email && editForm.email !== editingRow.email) profilePayload.email = editForm.email;
+      if (Object.keys(profilePayload).length > 0) await updateProfile(editingRow.user_id, profilePayload);
+      if (profilePayload.full_name) updatedName  = profilePayload.full_name;
+      if (profilePayload.email)     updatedEmail = profilePayload.email;
+    }
+    if (res.success && editForm.course_id && editForm.course_id !== editingRow.course_id) {
+      if (editingRow.enrollment_id) await deleteEnrollment(editingRow.enrollment_id);
+      const enrollRes = await createEnrollment({ student_id: editingRow.id, course_id: editForm.course_id, status: "active" });
+      if (enrollRes.success) updatedEnrollmentId = enrollRes.data.id;
+    }
+    if (selectedCourse) {
+      updatedCourseId    = selectedCourse.id;
+      updatedCourseLevel = selectedCourse.name;
+      updatedLangLevel   = selectedCourse.level;
     }
 
     if (res.success) {
@@ -433,6 +414,7 @@ export function StudentListPanel({
         school_student_id: editForm.school_student_id || r.school_student_id,
         course_level:    updatedCourseLevel,
         course_id:       updatedCourseId,
+        enrollment_id:   updatedEnrollmentId,
         language_level:  updatedLangLevel,
         nationality:     sharedPayload.nationality     ?? r.nationality,
         passport_number: sharedPayload.passport_number ?? r.passport_number,
@@ -899,29 +881,15 @@ export function StudentListPanel({
               <label className="text-sm font-medium">Duration</label>
               <Input className="w-full" placeholder="e.g. 5 mo. or 5+6 mo." value={editForm.duration_months} onChange={(e) => setEditForm((f) => ({ ...f, duration_months: e.target.value }))} />
             </div>
-            {editingRow?.source === "application" ? (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Course</label>
-                <SearchableSelect
-                  value={editForm.course_id}
-                  onChange={(v) => setEditForm((f) => ({ ...f, course_id: v }))}
-                  options={courses.map((c) => ({ value: c.id, label: c.name }))}
-                  placeholder="Select course"
-                />
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Language Level</label>
-                <Select value={editForm.language_level} onValueChange={(v) => setEditForm((f) => ({ ...f, language_level: v as "beginner" | "intermediate" | "advanced" }))}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Select level" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="beginner">Beginner</SelectItem>
-                    <SelectItem value="intermediate">Intermediate</SelectItem>
-                    <SelectItem value="advanced">Advanced</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Course</label>
+              <SearchableSelect
+                value={editForm.course_id}
+                onChange={(v) => setEditForm((f) => ({ ...f, course_id: v }))}
+                options={courses.map((c) => ({ value: c.id, label: c.name }))}
+                placeholder="Select course"
+              />
+            </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Status</label>
               <SearchableSelect
