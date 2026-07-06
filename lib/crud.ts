@@ -48,7 +48,7 @@ export async function getApplications() {
   try {
     const { data, error } = await supabase
       .from("applications")
-      .select("*, courses(name)")
+      .select("*, courses(name, language)")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -229,7 +229,7 @@ export async function getStudents() {
   try {
     const { data, error } = await supabase
       .from("students")
-      .select("*, profiles(email, full_name)")
+      .select("*, profiles(email, full_name), student_courses(status, created_at, courses(name, language))")
       .is("cancelled_at", null)
       .order("created_at", { ascending: false });
 

@@ -8,7 +8,8 @@ import {
   useReactTable,
   flexRender,
 } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight, Users, Pencil, XCircle, Search, Plus, Download, X, ChevronsUpDown, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Pencil, XCircle, Search, Plus, Download, X, ChevronsUpDown, Check, Languages } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberStepper } from "@/components/ui/number-stepper";
@@ -128,6 +129,14 @@ function SearchableSelect({
   );
 }
 
+const LANGUAGE_TABS = [
+  { value: "all", label: "All Students" },
+  { value: "thai", label: "Thai Language" },
+  { value: "english", label: "English Language" },
+  { value: "japanese", label: "Japanese Language" },
+] as const;
+type LanguageTab = typeof LANGUAGE_TABS[number]["value"];
+
 type RowSource = "student" | "application";
 
 type Row = {
@@ -145,6 +154,7 @@ type Row = {
   course_level: string | null;
   course_id: string | null;
   language_level: "beginner" | "intermediate" | "advanced" | null;
+  language: string | null;
   enrolled_date: string;
   visa_status: VisaStatus | null;
   visa_change_date: string | null;
@@ -166,27 +176,38 @@ type EditForm = {
   visa_last_date: string;
 };
 
+function currentCourse(sc: StudentWithProfile["student_courses"]) {
+  if (!sc || sc.length === 0) return null;
+  const active = sc.filter((e) => e.status === "active");
+  const pool = active.length > 0 ? active : sc;
+  return pool.reduce((latest, e) => (new Date(e.created_at) > new Date(latest.created_at) ? e : latest)).courses;
+}
+
 function buildRows(students: StudentWithProfile[], applications: Application[]): Row[] {
   return [
-    ...students.map((s) => ({
-      id: s.id,
-      source: "student" as RowSource,
-      name: s.profiles?.full_name ?? "—",
-      email: s.profiles?.email ?? null,
-      user_id: s.user_id,
-      school_student_id: s.school_student_id ?? null,
-      nationality: s.nationality ?? null,
-      passport_number: s.passport_number ?? null,
-      phone: s.phone ?? null,
-      duration_months: s.duration_months ?? null,
-      course_level: s.language_level ?? null,
-      course_id: null,
-      language_level: s.language_level ?? null,
-      enrolled_date: s.enrollment_date,
-      visa_status: s.visa_status ?? null,
-      visa_change_date: s.visa_change_date ?? null,
-      visa_last_date: s.visa_last_date ?? null,
-    })),
+    ...students.map((s) => {
+      const course = currentCourse(s.student_courses);
+      return {
+        id: s.id,
+        source: "student" as RowSource,
+        name: s.profiles?.full_name ?? "—",
+        email: s.profiles?.email ?? null,
+        user_id: s.user_id,
+        school_student_id: s.school_student_id ?? null,
+        nationality: s.nationality ?? null,
+        passport_number: s.passport_number ?? null,
+        phone: s.phone ?? null,
+        duration_months: s.duration_months ?? null,
+        course_level: s.language_level ?? null,
+        course_id: null,
+        language_level: s.language_level ?? null,
+        language: course?.language ?? null,
+        enrolled_date: s.enrollment_date,
+        visa_status: s.visa_status ?? null,
+        visa_change_date: s.visa_change_date ?? null,
+        visa_last_date: s.visa_last_date ?? null,
+      };
+    }),
     ...applications
       .filter((a) => a.status === "approved")
       .map((a) => ({
@@ -203,6 +224,7 @@ function buildRows(students: StudentWithProfile[], applications: Application[]):
         course_level: a.courses?.name ?? null,
         course_id: a.course_id ?? null,
         language_level: null,
+        language: a.courses?.language ?? null,
         enrolled_date: a.created_at,
         visa_status: a.visa_status ?? null,
         visa_change_date: a.visa_change_date ?? null,
@@ -234,6 +256,7 @@ export function StudentListPanel({
   );
   const [loading, setLoading] = useState(!hasInitial);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<LanguageTab>("all");
 
   const [editingRow, setEditingRow] = useState<Row | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
@@ -273,8 +296,8 @@ export function StudentListPanel({
   const refreshData = useCallback(async () => {
     const supabase = createClient();
     const [{ data: s }, { data: a }, { data: c }] = await Promise.all([
-      supabase.from("students").select("*, profiles(email, full_name)").is("cancelled_at", null).order("created_at", { ascending: false }),
-      supabase.from("applications").select("*, courses(name)").order("created_at", { ascending: false }),
+      supabase.from("students").select("*, profiles(email, full_name), student_courses(status, created_at, courses(name, language))").is("cancelled_at", null).order("created_at", { ascending: false }),
+      supabase.from("applications").select("*, courses(name, language)").order("created_at", { ascending: false }),
       supabase.from("courses").select("*").order("created_at", { ascending: false }),
     ]);
     if (s && a) setRows(buildRows(s as StudentWithProfile[], a as Application[]));
@@ -289,9 +312,15 @@ export function StudentListPanel({
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, refreshData)
       .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, refreshData)
       .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, refreshData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "student_courses" }, refreshData)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [refreshData]);
+
+  function handleTabChange(tab: LanguageTab) {
+    setActiveTab(tab);
+    setRowSelection({});
+  }
 
   function openAdd() {
     setAddError(null);
@@ -457,10 +486,24 @@ export function StudentListPanel({
     URL.revokeObjectURL(url);
   }
 
+  const tabCounts = useMemo(() => {
+    const counts: Record<LanguageTab, number> = { all: rows.length, thai: 0, english: 0, japanese: 0 };
+    for (const r of rows) {
+      const lang = (r.language ?? "").toLowerCase();
+      if (lang === "thai" || lang === "english" || lang === "japanese") counts[lang] += 1;
+    }
+    return counts;
+  }, [rows]);
+
+  const tabFiltered = useMemo(() => {
+    if (activeTab === "all") return rows;
+    return rows.filter((r) => (r.language ?? "").toLowerCase() === activeTab);
+  }, [rows, activeTab]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
+    if (!q) return tabFiltered;
+    return tabFiltered.filter((r) =>
       r.name.toLowerCase().includes(q) ||
       (r.nationality ?? "").toLowerCase().includes(q) ||
       (r.passport_number ?? "").toLowerCase().includes(q) ||
@@ -469,7 +512,7 @@ export function StudentListPanel({
       (r.email ?? "").toLowerCase().includes(q) ||
       (r.school_student_id ?? "").toLowerCase().includes(q)
     );
-  }, [rows, search]);
+  }, [tabFiltered, search]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const columns = useMemo(() => [
@@ -654,9 +697,9 @@ export function StudentListPanel({
     setBulkCancelling(false);
   }
 
-  // Reset to first page on search change
+  // Reset to first page on search/tab change
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { table.setPageIndex(0); }, [search]);
+  useEffect(() => { table.setPageIndex(0); }, [search, activeTab]);
 
   const { pageIndex } = table.getState().pagination;
   const pageCount = Math.max(1, table.getPageCount());
@@ -680,6 +723,26 @@ export function StudentListPanel({
         </CardHeader>
 
         <CardContent className="px-8 pb-8">
+          {/* ── Language Tabs ── */}
+          <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as LanguageTab)} className="w-full mb-4">
+            <TabsList
+              variant="line"
+              className="w-full justify-start h-auto pb-0 border-b border-slate-200 dark:border-slate-700 rounded-none gap-0 [&>[data-slot=tabs-trigger]]:text-slate-500 dark:[&>[data-slot=tabs-trigger]]:text-slate-400 [&>[data-slot=tabs-trigger][data-active]]:text-slate-900 dark:[&>[data-slot=tabs-trigger][data-active]]:text-white [&>[data-slot=tabs-trigger]]:after:bg-brand-500 [&>[data-slot=tabs-trigger]]:px-5 [&>[data-slot=tabs-trigger]]:py-3"
+            >
+              {LANGUAGE_TABS.map((t) => (
+                <TabsTrigger key={t.value} value={t.value}>
+                  <Languages size={15} />
+                  {t.label}
+                  {!loading && (
+                    <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full px-2 py-0.5 text-xs">
+                      {tabCounts[t.value]}
+                    </span>
+                  )}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+
           {/* ── Persistent Toolbar ── */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {selectedCount > 0 && (
