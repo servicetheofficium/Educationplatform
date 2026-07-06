@@ -386,7 +386,7 @@ export async function getCancelledStudents() {
   try {
     const { data, error } = await supabase
       .from("students")
-      .select("*, profiles(email, full_name)")
+      .select("*, profiles(email, full_name), student_courses(status, created_at, courses(name))")
       .not("cancelled_at", "is", null)
       .order("cancelled_at", { ascending: false });
 

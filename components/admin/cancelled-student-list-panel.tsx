@@ -38,11 +38,11 @@ function buildRows(students: StudentWithProfile[], apps: Application[]): Row[] {
     ...students.map((s) => ({
       id: s.id,
       source: "student" as const,
-      name: s.profiles?.full_name ?? "—",
-      email: s.profiles?.email ?? null,
+      name: s.profiles?.full_name ?? s.name ?? "—",
+      email: s.profiles?.email ?? s.email ?? null,
       phone: s.phone ?? null,
       passport_number: s.passport_number ?? null,
-      course: s.language_level ?? null,
+      course: s.student_courses?.[0]?.courses?.name ?? s.language_level ?? null,
       cancelledAt: s.cancelled_at!,
     })),
     ...apps.map((a) => ({
@@ -76,7 +76,7 @@ export function CancelledStudentListPanel({
   const refreshData = useCallback(async () => {
     const supabase = createClient();
     const [{ data: s }, { data: a }] = await Promise.all([
-      supabase.from("students").select("*, profiles(email, full_name)").not("cancelled_at", "is", null).order("cancelled_at", { ascending: false }),
+      supabase.from("students").select("*, profiles(email, full_name), student_courses(status, created_at, courses(name))").not("cancelled_at", "is", null).order("cancelled_at", { ascending: false }),
       supabase.from("applications").select("*, courses(name)").eq("status", "cancelled").order("updated_at", { ascending: false }),
     ]);
     if (s && a) setRows(buildRows(s as StudentWithProfile[], a as Application[]));
