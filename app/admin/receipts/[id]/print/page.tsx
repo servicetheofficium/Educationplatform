@@ -136,7 +136,6 @@ export default function ReceiptPrintPage() {
       <main className="receipt-page">
         <section className="receipt">
           <div className="center">
-            <img src="/school_logo.png" alt="KNC School" style={{ width: 110, height: 110, margin: "0 auto 6px", display: "block", objectFit: "contain" }} />
             <h1>KNC School</h1>
             <p>Language &amp; Education Center</p>
             <p>Bangkok, Thailand</p>
