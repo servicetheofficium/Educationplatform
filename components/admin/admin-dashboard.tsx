@@ -17,6 +17,7 @@ import {
   BookOpen,
   Users,
   BarChart3,
+  CalendarCheck,
   Download,
   Plus,
   Pencil,
@@ -34,6 +35,7 @@ interface AdminDashboardProps {
   courses: Course[];
   activeStudentCount: number;
   totalEnrollmentCount: number;
+  monthlyAppliedCount: number;
   adminName?: string;
 }
 
@@ -65,11 +67,13 @@ export function AdminDashboard({
   courses,
   activeStudentCount,
   totalEnrollmentCount,
+  monthlyAppliedCount,
   adminName,
 }: AdminDashboardProps) {
   const [localCourses, setLocalCourses] = useState<Course[]>(courses);
   const [liveStudentCount] = useState(activeStudentCount);
   const [liveTotalCount] = useState(totalEnrollmentCount);
+  const [liveMonthlyAppliedCount] = useState(monthlyAppliedCount);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
@@ -138,6 +142,12 @@ export function AdminDashboard({
       icon: BarChart3,
       color: "bg-purple-100 text-purple-600",
     },
+    {
+      label: "Monthly Applied",
+      value: liveMonthlyAppliedCount,
+      icon: CalendarCheck,
+      color: "bg-orange-100 text-orange-600",
+    },
   ];
 
   const handleCreate = async () => {
@@ -199,7 +209,7 @@ export function AdminDashboard({
           Welcome back, {adminName}
         </h1>
       )}
-      <div className="grid md:grid-cols-3 gap-6 mb-12">
+      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (

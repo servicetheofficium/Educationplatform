@@ -17,6 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/utils/supabase/client";
 import { createReceipt, updateReceipt, deleteReceipt } from "@/lib/crud";
 import type { Receipt, ReceiptItem, StudentWithProfile, Course, DocumentService } from "@/lib/types";
@@ -54,10 +55,18 @@ type ReceiptForm = {
   duration: string;
   items: ReceiptItem[];
   paid_amount: number;
+  agent_discount: number;
   payment_method: string;
   remaining_amount: number;
+  receipt_note: string;
   next_payment_date: string;
   staff_name: string;
+  agent_name: string;
+  agent_phone: string;
+  agent_email: string;
+  agent_nationality: string;
+  agent_company_register_number: string;
+  agent_note: string;
 };
 
 const EMPTY_FORM: ReceiptForm = {
@@ -68,10 +77,18 @@ const EMPTY_FORM: ReceiptForm = {
   duration: "",
   items: [],
   paid_amount: 0,
+  agent_discount: 0,
   payment_method: "Cash",
   remaining_amount: 0,
+  receipt_note: "",
   next_payment_date: "",
   staff_name: "",
+  agent_name: "",
+  agent_phone: "",
+  agent_email: "",
+  agent_nationality: "",
+  agent_company_register_number: "",
+  agent_note: "",
 };
 
 // ─── panel ───────────────────────────────────────────────────────────────────
@@ -153,9 +170,17 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       items,
       paid_amount: r.paid_amount,
       payment_method: r.payment_method,
+      agent_discount: r.agent_discount ?? 0,
       remaining_amount: r.remaining_amount ?? 0,
+      receipt_note: r.receipt_note ?? "",
       next_payment_date: r.next_payment_date ?? "",
       staff_name: r.staff_name ?? "",
+      agent_name: r.agent_name ?? "",
+      agent_phone: r.agent_phone ?? "",
+      agent_email: r.agent_email ?? "",
+      agent_nationality: r.agent_nationality ?? "",
+      agent_company_register_number: r.agent_company_register_number ?? "",
+      agent_note: r.agent_note ?? "",
     });
     setEditingReceipt(r);
     setFormOpen(true);
@@ -167,9 +192,9 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
     if (!s) return;
     setForm((p) => ({
       ...p,
-      student_name: s.profiles?.full_name ?? "",
+      student_name: s.profiles?.full_name ?? s.name ?? "",
       phone: s.phone ?? "",
-      email: s.profiles?.email ?? "",
+      email: s.profiles?.email ?? s.email ?? "",
       passport_no: s.passport_number ?? p.passport_no,
     }));
   };
@@ -227,10 +252,18 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       total_amount: totalAmount,
       payment_method: form.payment_method,
       paid_amount: form.paid_amount,
+      agent_discount: form.agent_discount || 0,
       change_amount: changeAmount,
       remaining_amount: form.remaining_amount || 0,
+      receipt_note: form.receipt_note || null,
       next_payment_date: form.next_payment_date || null,
       staff_name: form.staff_name || null,
+      agent_name: form.agent_name || null,
+      agent_phone: form.agent_phone || null,
+      agent_email: form.agent_email || null,
+      agent_nationality: form.agent_nationality || null,
+      agent_company_register_number: form.agent_company_register_number || null,
+      agent_note: form.agent_note || null,
     };
 
     if (editingReceipt) {
@@ -392,7 +425,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                   <SelectContent>
                     {initialStudents.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.profiles?.full_name ?? s.id}
+                        {s.profiles?.full_name ?? s.name ?? s.id}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -545,6 +578,16 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Agent Discount (฿)</label>
+              <Input
+                type="number"
+                placeholder="0"
+                value={form.agent_discount || ""}
+                onChange={(e) => setForm((p) => ({ ...p, agent_discount: Number(e.target.value) }))}
+              />
+            </div>
+
             <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
               <span>Change</span>
               <span className={changeAmount < 0 ? "text-red-500" : ""}>฿{changeAmount.toLocaleString()}</span>
@@ -571,12 +614,81 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
             </div>
 
             <div className="space-y-1.5">
+              <label className="text-sm font-medium">Note</label>
+              <Textarea
+                placeholder="Additional note"
+                value={form.receipt_note}
+                onChange={(e) => setForm((p) => ({ ...p, receipt_note: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">Staff Name</label>
               <Input
                 placeholder="Admin"
                 value={form.staff_name}
                 onChange={(e) => setForm((p) => ({ ...p, staff_name: e.target.value }))}
               />
+            </div>
+
+            <div className="space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+              <label className="text-sm font-semibold">Agent Information</label>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Agent Name</label>
+                <Input
+                  placeholder="Full name"
+                  value={form.agent_name}
+                  onChange={(e) => setForm((p) => ({ ...p, agent_name: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Agent Phone</label>
+                  <Input
+                    placeholder="09X-XXX-XXXX"
+                    value={form.agent_phone}
+                    onChange={(e) => setForm((p) => ({ ...p, agent_phone: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Agent Email</label>
+                  <Input
+                    placeholder="agent@email.com"
+                    value={form.agent_email}
+                    onChange={(e) => setForm((p) => ({ ...p, agent_email: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Agent Nationality</label>
+                  <Input
+                    placeholder="e.g. Thai"
+                    value={form.agent_nationality}
+                    onChange={(e) => setForm((p) => ({ ...p, agent_nationality: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Company Register No.</label>
+                  <Input
+                    placeholder="e.g. 0105561000000"
+                    value={form.agent_company_register_number}
+                    onChange={(e) => setForm((p) => ({ ...p, agent_company_register_number: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Agent Note</label>
+                <Textarea
+                  placeholder="Additional note"
+                  value={form.agent_note}
+                  onChange={(e) => setForm((p) => ({ ...p, agent_note: e.target.value }))}
+                />
+              </div>
             </div>
           </div>
 
