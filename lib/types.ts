@@ -130,6 +130,14 @@ export type Receipt = {
   remaining_amount: number;
   next_payment_date: string | null;
   staff_name: string | null;
+  agent_discount: number | null;
+  receipt_note: string | null;
+  agent_name: string | null;
+  agent_phone: string | null;
+  agent_email: string | null;
+  agent_nationality: string | null;
+  agent_company_register_number: string | null;
+  agent_note: string | null;
   created_at: string;
 };
 

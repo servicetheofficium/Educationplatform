@@ -434,7 +434,7 @@ export function StudentListPanel({
 
   function exportCSV(data: Row[]) {
     const headers = [
-      "#", "Student Name", "Nationality", "Passport No.", "Phone",
+      "#", "Student Name", "Student ID", "Nationality", "Passport No.", "Phone",
       "Duration (mo.)", "Course / Level", "Visa Change Date", "Visa Last Date", "Visa Status", "Enrolled Date",
     ];
     const escape = (v: string | null | undefined) => {
@@ -448,6 +448,7 @@ export function StudentListPanel({
       ...data.map((r) => [
         r.num,
         escape(r.name),
+        escape(r.school_student_id),
         escape(r.nationality),
         escape(r.passport_number),
         escape(r.phone),

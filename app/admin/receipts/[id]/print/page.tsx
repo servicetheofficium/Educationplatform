@@ -163,6 +163,31 @@ export default function ReceiptPrintPage() {
           )}
           <div className="info-row"><span>Course</span><span>{receipt.course_name}</span></div>
 
+          {(receipt.agent_name || receipt.agent_phone || receipt.agent_email || receipt.agent_nationality || receipt.agent_company_register_number || receipt.agent_note) && (
+            <>
+              <div className="line" />
+              <h3>Agent Information</h3>
+              {receipt.agent_name && (
+                <div className="info-row"><span>Name</span><span>{receipt.agent_name}</span></div>
+              )}
+              {receipt.agent_phone && (
+                <div className="info-row"><span>Phone</span><span>{receipt.agent_phone}</span></div>
+              )}
+              {receipt.agent_email && (
+                <div className="info-row"><span>Email</span><span>{receipt.agent_email}</span></div>
+              )}
+              {receipt.agent_nationality && (
+                <div className="info-row"><span>Nationality</span><span>{receipt.agent_nationality}</span></div>
+              )}
+              {receipt.agent_company_register_number && (
+                <div className="info-row"><span>Company Reg. No</span><span>{receipt.agent_company_register_number}</span></div>
+              )}
+              {receipt.agent_note && (
+                <div className="info-row"><span>Note</span><span>{receipt.agent_note}</span></div>
+              )}
+            </>
+          )}
+
           <div className="line" />
 
           <div className="table-head">
@@ -203,9 +228,15 @@ export default function ReceiptPrintPage() {
 
           <div className="info-row"><span>Payment Method</span><span>{receipt.payment_method}</span></div>
           <div className="info-row"><span>Paid Amount</span><span>{fmt(receipt.paid_amount)}</span></div>
+          {!!receipt.agent_discount && (
+            <div className="info-row"><span>Agent Discount</span><span>{fmt(receipt.agent_discount)}</span></div>
+          )}
           <div className="info-row"><span>Change</span><span>{fmt(change)}</span></div>
           {receipt.remaining_amount > 0 && (
             <div className="info-row"><span>Remaining Amount</span><span>{fmt(receipt.remaining_amount)}</span></div>
+          )}
+          {receipt.receipt_note && (
+            <div className="info-row"><span>Note</span><span>{receipt.receipt_note}</span></div>
           )}
           {receipt.next_payment_date && (
             <div className="info-row"><span>Next Payment Date</span><span>{new Date(receipt.next_payment_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span></div>

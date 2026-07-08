@@ -8,11 +8,18 @@ export default async function AdminPage() {
 
   const approvedAppCount = (applications ?? []).filter((a: { status: string }) => a.status === "approved").length;
 
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthlyAppliedCount = (students ?? []).filter(
+    (s: { enrollment_date: string }) => new Date(s.enrollment_date) >= monthStart
+  ).length;
+
   return (
     <AdminDashboard
       courses={courses || []}
       activeStudentCount={(students?.length ?? 0) + approvedAppCount}
       totalEnrollmentCount={(enrollments?.length ?? 0) + approvedAppCount}
+      monthlyAppliedCount={monthlyAppliedCount}
       adminName={adminUser?.full_name || adminUser?.email}
     />
   );

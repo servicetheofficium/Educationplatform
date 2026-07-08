@@ -795,6 +795,14 @@ export async function createReceipt(data: {
   paid_amount: number;
   change_amount: number;
   staff_name?: string | null;
+  agent_discount?: number | null;
+  receipt_note?: string | null;
+  agent_name?: string | null;
+  agent_phone?: string | null;
+  agent_email?: string | null;
+  agent_nationality?: string | null;
+  agent_company_register_number?: string | null;
+  agent_note?: string | null;
 }) {
   const supabase = await createClient();
   try {
@@ -826,6 +834,14 @@ export async function updateReceipt(id: string, data: Partial<{
   paid_amount: number;
   change_amount: number;
   staff_name: string | null;
+  agent_discount: number | null;
+  receipt_note: string | null;
+  agent_name: string | null;
+  agent_phone: string | null;
+  agent_email: string | null;
+  agent_nationality: string | null;
+  agent_company_register_number: string | null;
+  agent_note: string | null;
 }>) {
   const supabase = await createClient();
   try {
