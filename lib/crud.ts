@@ -474,6 +474,174 @@ export async function deleteStudent(id: string) {
   }
 }
 
+// ============ STUDENT DOCUMENT CASES ============
+
+export async function getDocumentCases() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("student_document_cases")
+      .select(
+        "*, students(id, name, school_student_id, nationality, passport_number, phone, language_level, email, cancelled_at, profiles(email, full_name))"
+      )
+      .order("visa_last_date", { ascending: true });
+
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch document cases",
+    };
+  }
+}
+
+export async function createDocumentCase(data: {
+  student_id: string;
+  visa_status?: string;
+  visa_change_date?: string;
+  visa_last_date: string;
+}) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("student_document_cases")
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) throw error;
+    logAdminActivity("create", "student_document_cases", result.id, data);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create document case",
+    };
+  }
+}
+
+export async function updateDocumentCase(
+  id: string,
+  data: { doc_status: "pending" | "submitted" | "checked" | "completed" }
+) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("student_document_cases")
+      .update({
+        ...data,
+        completed_at: data.doc_status === "completed" ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    logAdminActivity("update", "student_document_cases", id, data);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update document case",
+    };
+  }
+}
+
+// ============ AGENTS ============
+
+export async function getAgents() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("agents")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to fetch agents",
+    };
+  }
+}
+
+export async function createAgent(data: {
+  name: string;
+  phone?: string;
+  email?: string;
+  nationality?: string;
+  company_name?: string;
+  id_passport_number?: string;
+}) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("agents")
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) throw error;
+    logAdminActivity("create", "agents", result.id, data);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create agent",
+    };
+  }
+}
+
+export async function updateAgent(
+  id: string,
+  data: Partial<{
+    name: string;
+    phone: string;
+    email: string;
+    nationality: string;
+    company_name: string;
+    id_passport_number: string;
+  }>
+) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("agents")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    logAdminActivity("update", "agents", id, data);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update agent",
+    };
+  }
+}
+
+export async function deleteAgent(id: string) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase.from("agents").delete().eq("id", id);
+    if (error) throw error;
+    logAdminActivity("delete", "agents", id);
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to delete agent",
+    };
+  }
+}
+
 // ============ DOCUMENT SERVICES ============
 
 export async function getDocumentServices() {

@@ -30,7 +30,7 @@ import {
 import {
   getStudents, getApplications, getCourses,
   createApplication, updateApplication, updateStudent, updateProfile,
-  createEnrollment, deleteEnrollment,
+  createEnrollment, deleteEnrollment, createDocumentCase,
 } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
 import type { StudentWithProfile, Application, Course, VisaStatus } from "@/lib/types";
@@ -361,74 +361,90 @@ export function StudentListPanel({
   async function handleSave() {
     if (!editingRow) return;
     setSaving(true); setSaveError(null);
+    console.log("[debug] editingRow.id", editingRow.id, "editForm at save", editForm);
+    try {
+      const sharedPayload = {
+        nationality:     editForm.nationality || undefined,
+        passport_number: editForm.passport_number || undefined,
+        phone:           editForm.phone || undefined,
+        duration_months: editForm.duration_months || undefined,
+        visa_status:     (editForm.visa_status || undefined) as VisaStatus | undefined,
+        visa_change_date: editForm.visa_change_date || undefined,
+        visa_last_date:  editForm.visa_last_date || undefined,
+      };
 
-    const sharedPayload = {
-      nationality:     editForm.nationality || undefined,
-      passport_number: editForm.passport_number || undefined,
-      phone:           editForm.phone || undefined,
-      duration_months: editForm.duration_months || undefined,
-      visa_status:     (editForm.visa_status || undefined) as VisaStatus | undefined,
-      visa_change_date: editForm.visa_change_date || undefined,
-      visa_last_date:  editForm.visa_last_date || undefined,
-    };
+      let res: { success: boolean; error?: string };
+      let updatedName  = editingRow.name;
+      let updatedEmail = editingRow.email;
+      let updatedCourseLevel = editingRow.course_level;
+      let updatedCourseId    = editingRow.course_id;
+      let updatedEnrollmentId = editingRow.enrollment_id;
+      let updatedLangLevel   = editingRow.language_level;
 
-    let res: { success: boolean; error?: string };
-    let updatedName  = editingRow.name;
-    let updatedEmail = editingRow.email;
-    let updatedCourseLevel = editingRow.course_level;
-    let updatedCourseId    = editingRow.course_id;
-    let updatedEnrollmentId = editingRow.enrollment_id;
-    let updatedLangLevel   = editingRow.language_level;
+      const selectedCourse = courses.find((c) => c.id === editForm.course_id);
+      const visaDatesChanged =
+        editForm.visa_change_date !== (editingRow.visa_change_date ?? "") ||
+        editForm.visa_last_date  !== (editingRow.visa_last_date ?? "");
+      const studentPayload = {
+        ...sharedPayload,
+        language_level:    (selectedCourse?.level ?? editForm.language_level ?? undefined) as "beginner" | "intermediate" | "advanced" | undefined,
+        school_student_id: editForm.school_student_id || undefined,
+      };
+      res = await updateStudent(editingRow.id, studentPayload);
+      if (res.success && visaDatesChanged && editForm.visa_last_date) {
+        await createDocumentCase({
+          student_id: editingRow.id,
+          visa_status: editForm.visa_status || undefined,
+          visa_change_date: editForm.visa_change_date || undefined,
+          visa_last_date: editForm.visa_last_date,
+        });
+      }
+      if (res.success && editingRow.user_id) {
+        const profilePayload: { full_name?: string; email?: string } = {};
+        if (editForm.name && editForm.name !== editingRow.name) profilePayload.full_name = editForm.name;
+        if (editForm.email && editForm.email !== editingRow.email) profilePayload.email = editForm.email;
+        if (Object.keys(profilePayload).length > 0) await updateProfile(editingRow.user_id, profilePayload);
+        if (profilePayload.full_name) updatedName  = profilePayload.full_name;
+        if (profilePayload.email)     updatedEmail = profilePayload.email;
+      }
+      if (res.success && editForm.course_id && editForm.course_id !== editingRow.course_id) {
+        if (editingRow.enrollment_id) await deleteEnrollment(editingRow.enrollment_id);
+        const enrollRes = await createEnrollment({ student_id: editingRow.id, course_id: editForm.course_id, status: "active" });
+        if (enrollRes.success) updatedEnrollmentId = enrollRes.data.id;
+      }
+      if (selectedCourse) {
+        updatedCourseId    = selectedCourse.id;
+        updatedCourseLevel = selectedCourse.name;
+        updatedLangLevel   = selectedCourse.level;
+      }
 
-    const selectedCourse = courses.find((c) => c.id === editForm.course_id);
-    const studentPayload = {
-      ...sharedPayload,
-      language_level:    (selectedCourse?.level ?? editForm.language_level ?? undefined) as "beginner" | "intermediate" | "advanced" | undefined,
-      school_student_id: editForm.school_student_id || undefined,
-    };
-    res = await updateStudent(editingRow.id, studentPayload);
-    if (res.success && editingRow.user_id) {
-      const profilePayload: { full_name?: string; email?: string } = {};
-      if (editForm.name && editForm.name !== editingRow.name) profilePayload.full_name = editForm.name;
-      if (editForm.email && editForm.email !== editingRow.email) profilePayload.email = editForm.email;
-      if (Object.keys(profilePayload).length > 0) await updateProfile(editingRow.user_id, profilePayload);
-      if (profilePayload.full_name) updatedName  = profilePayload.full_name;
-      if (profilePayload.email)     updatedEmail = profilePayload.email;
+      if (res.success) {
+        setRows((prev) => prev.map((r) => r.id === editingRow.id ? {
+          ...r,
+          name:              updatedName,
+          email:             updatedEmail,
+          school_student_id: editForm.school_student_id || r.school_student_id,
+          course_level:    updatedCourseLevel,
+          course_id:       updatedCourseId,
+          enrollment_id:   updatedEnrollmentId,
+          language_level:  updatedLangLevel,
+          nationality:     sharedPayload.nationality     ?? r.nationality,
+          passport_number: sharedPayload.passport_number ?? r.passport_number,
+          phone:           sharedPayload.phone           ?? r.phone,
+          duration_months: sharedPayload.duration_months ?? r.duration_months,
+          visa_status:     sharedPayload.visa_status     ?? r.visa_status,
+          visa_change_date: sharedPayload.visa_change_date ?? r.visa_change_date,
+          visa_last_date:  sharedPayload.visa_last_date  ?? r.visa_last_date,
+        } : r));
+        setEditingRow(null);
+      } else {
+        setSaveError((res as { error?: string }).error ?? "Failed to save.");
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Unexpected error while saving.");
+    } finally {
+      setSaving(false);
     }
-    if (res.success && editForm.course_id && editForm.course_id !== editingRow.course_id) {
-      if (editingRow.enrollment_id) await deleteEnrollment(editingRow.enrollment_id);
-      const enrollRes = await createEnrollment({ student_id: editingRow.id, course_id: editForm.course_id, status: "active" });
-      if (enrollRes.success) updatedEnrollmentId = enrollRes.data.id;
-    }
-    if (selectedCourse) {
-      updatedCourseId    = selectedCourse.id;
-      updatedCourseLevel = selectedCourse.name;
-      updatedLangLevel   = selectedCourse.level;
-    }
-
-    if (res.success) {
-      setRows((prev) => prev.map((r) => r.id === editingRow.id ? {
-        ...r,
-        name:              updatedName,
-        email:             updatedEmail,
-        school_student_id: editForm.school_student_id || r.school_student_id,
-        course_level:    updatedCourseLevel,
-        course_id:       updatedCourseId,
-        enrollment_id:   updatedEnrollmentId,
-        language_level:  updatedLangLevel,
-        nationality:     sharedPayload.nationality     ?? r.nationality,
-        passport_number: sharedPayload.passport_number ?? r.passport_number,
-        phone:           sharedPayload.phone           ?? r.phone,
-        duration_months: sharedPayload.duration_months ?? r.duration_months,
-        visa_status:     sharedPayload.visa_status     ?? r.visa_status,
-        visa_change_date: sharedPayload.visa_change_date ?? r.visa_change_date,
-        visa_last_date:  sharedPayload.visa_last_date  ?? r.visa_last_date,
-      } : r));
-      setEditingRow(null);
-    } else {
-      setSaveError((res as { error?: string }).error ?? "Failed to save.");
-    }
-    setSaving(false);
   }
 
 
