@@ -2,7 +2,7 @@
 
 import { after } from "next/server";
 import { createClient } from "@/utils/supabase/server";
-import { sendAdminApplicationNotification, sendAdminServiceRequestNotification } from "@/lib/email";
+import { sendAdminApplicationNotification, sendAdminServiceRequestNotification, sendAdminStudentAddedNotification } from "@/lib/email";
 
 // ============ ACTIVITY LOG ============
 
@@ -423,6 +423,8 @@ export async function updateProfile(
 export async function updateStudent(
   id: string,
   data: Partial<{
+    name: string;
+    email: string;
     phone: string;
     address: string;
     language_level: "beginner" | "intermediate" | "advanced";
@@ -454,6 +456,54 @@ export async function updateStudent(
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to update student",
+    };
+  }
+}
+
+export async function createStudent(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  nationality?: string;
+  passport_number?: string;
+  school_student_id?: string;
+  duration_months?: string;
+  visa_status?: "processing" | "visa_changed" | "first_extension" | "second_extension" | "third_extension" | "fourth_extension" | "fifth_extension";
+  visa_change_date?: string;
+  visa_last_date?: string;
+  language_level?: "beginner" | "intermediate" | "advanced";
+}) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("students")
+      .insert([data])
+      .select()
+      .single();
+
+    if (error) throw error;
+    logAdminActivity("create", "students", result.id, data);
+
+    after(async () => {
+      try {
+        await sendAdminStudentAddedNotification({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          nationality: data.nationality,
+          school_student_id: data.school_student_id,
+        });
+        console.log("[email] Student added notification sent");
+      } catch (emailErr) {
+        console.error("[email] Student added notification FAILED:", emailErr);
+      }
+    });
+
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create student",
     };
   }
 }
