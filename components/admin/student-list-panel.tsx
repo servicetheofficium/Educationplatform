@@ -28,12 +28,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  getStudents, getApplications, getCourses,
-  createApplication, updateApplication, updateStudent, updateProfile,
+  getStudents, getCourses,
+  createStudent, updateApplication, updateStudent, updateProfile,
   createEnrollment, deleteEnrollment, createDocumentCase,
 } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
-import type { StudentWithProfile, Application, Course, VisaStatus } from "@/lib/types";
+import type { StudentWithProfile, Course, VisaStatus } from "@/lib/types";
 
 const PER_PAGE = 10;
 
@@ -317,23 +317,27 @@ export function StudentListPanel({
   async function handleAdd() {
     if (!addForm.name || !addForm.email) { setAddError("Name and email are required."); return; }
     setAdding(true); setAddError(null);
-    const res = await createApplication({ name: addForm.name, email: addForm.email, phone: addForm.phone || undefined, course_id: addForm.course_id || undefined, message: "" });
-    if (!res.success) { setAddError((res as { error?: string }).error ?? "Failed."); setAdding(false); return; }
-    const freshApps = await getApplications();
-    if (freshApps.success) {
-      const newest = (freshApps.data as Application[]).find((a) => a.email === addForm.email && a.status === "pending");
-      if (newest) {
-        await updateApplication(newest.id, {
-          status: "approved",
-          nationality: addForm.nationality || undefined,
-          passport_number: addForm.passport_number || undefined,
-          duration_months: addForm.duration_months || undefined,
-          visa_status: (addForm.visa_status || undefined) as VisaStatus | undefined,
-          visa_change_date: addForm.visa_change_date || undefined,
-          visa_last_date: addForm.visa_last_date || undefined,
-          school_student_id: addForm.school_student_id || undefined,
-        });
-      }
+    const selectedCourse = courses.find((c) => c.id === addForm.course_id);
+    const res = await createStudent({
+      name: addForm.name,
+      email: addForm.email,
+      phone: addForm.phone || undefined,
+      nationality: addForm.nationality || undefined,
+      passport_number: addForm.passport_number || undefined,
+      school_student_id: addForm.school_student_id || undefined,
+      duration_months: addForm.duration_months || undefined,
+      visa_status: (addForm.visa_status || undefined) as VisaStatus | undefined,
+      visa_change_date: addForm.visa_change_date || undefined,
+      visa_last_date: addForm.visa_last_date || undefined,
+      language_level: selectedCourse?.level ?? undefined,
+    });
+    if (!res.success || !res.data) {
+      setAddError((res as { error?: string }).error ?? "Failed to add student.");
+      setAdding(false);
+      return;
+    }
+    if (addForm.course_id) {
+      await createEnrollment({ student_id: res.data.id, course_id: addForm.course_id, status: "active" });
     }
     await refreshData();
     setAddOpen(false); setAdding(false);
@@ -364,6 +368,8 @@ export function StudentListPanel({
     console.log("[debug] editingRow.id", editingRow.id, "editForm at save", editForm);
     try {
       const sharedPayload = {
+        name:            editForm.name || undefined,
+        email:           editForm.email || undefined,
         nationality:     editForm.nationality || undefined,
         passport_number: editForm.passport_number || undefined,
         phone:           editForm.phone || undefined,
@@ -374,8 +380,8 @@ export function StudentListPanel({
       };
 
       let res: { success: boolean; error?: string };
-      let updatedName  = editingRow.name;
-      let updatedEmail = editingRow.email;
+      let updatedName  = sharedPayload.name  ?? editingRow.name;
+      let updatedEmail = sharedPayload.email ?? editingRow.email;
       let updatedCourseLevel = editingRow.course_level;
       let updatedCourseId    = editingRow.course_id;
       let updatedEnrollmentId = editingRow.enrollment_id;
@@ -650,7 +656,7 @@ export function StudentListPanel({
               }
             }}
           >
-            <SelectTrigger className="h-7 w-32 text-xs bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
+            <SelectTrigger className="h-7 w-40 text-xs bg-white dark:bg-slate-700/50 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
               <SelectValue placeholder="Set status" />
             </SelectTrigger>
             <SelectContent>
@@ -661,7 +667,7 @@ export function StudentListPanel({
           </Select>
         );
       },
-      size: 140,
+      size: 160,
     }),
   ], []);
 
