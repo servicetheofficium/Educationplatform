@@ -84,6 +84,33 @@ export type StudentWithProfile = Student & {
   }[] | null;
 };
 
+export type StudentDocumentCase = {
+  id: string;
+  student_id: string;
+  visa_status: VisaStatus | null;
+  visa_change_date: string | null;
+  visa_last_date: string;
+  doc_status: "pending" | "submitted" | "checked" | "completed";
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StudentDocumentCaseWithStudent = StudentDocumentCase & {
+  students: {
+    id: string;
+    name: string | null;
+    school_student_id: string | null;
+    nationality: string | null;
+    passport_number: string | null;
+    phone: string | null;
+    language_level: "beginner" | "intermediate" | "advanced" | null;
+    email: string | null;
+    cancelled_at: string | null;
+    profiles: { email: string; full_name: string } | null;
+  } | null;
+};
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -155,6 +182,18 @@ export type ServiceRequest = {
   notes: string | null;
   status: ServiceRequestStatus;
   price_thb: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Agent = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  nationality: string | null;
+  company_name: string | null;
+  id_passport_number: string | null;
   created_at: string;
   updated_at: string;
 };

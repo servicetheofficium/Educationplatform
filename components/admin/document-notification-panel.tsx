@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { updateStudent, updateApplication } from "@/lib/crud";
+import { updateDocumentCase, updateApplication } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
-import type { StudentWithProfile, Application } from "@/lib/types";
+import type { StudentDocumentCaseWithStudent, Application } from "@/lib/types";
 
 const DAYS_THRESHOLD = 45;
 
@@ -62,7 +62,7 @@ function formatDate(dateStr: string) {
 
 type Row = {
   id: string;
-  source: "student" | "app";
+  source: "case" | "app";
   name: string;
   school_student_id: string | null;
   nationality: string | null;
@@ -72,30 +72,34 @@ type Row = {
   course: string | null;
   visa_last_date: string;
   doc_status: DocStatus;
+  completed_at: string | null;
   daysRemaining: number;
   urgency: Urgency;
 };
 
-function buildRows(students: StudentWithProfile[], apps: Application[]): Row[] {
-  const studentRows: Row[] = students
-    .filter((s) => {
-      if (!s.visa_last_date) return false;
-      return getDaysRemaining(s.visa_last_date) <= DAYS_THRESHOLD;
+function buildRows(cases: StudentDocumentCaseWithStudent[], apps: Application[]): Row[] {
+  const caseRows: Row[] = cases
+    .filter((c) => {
+      if (!c.students || c.students.cancelled_at) return false;
+      if (c.doc_status === "completed") return true;
+      return getDaysRemaining(c.visa_last_date) <= DAYS_THRESHOLD;
     })
-    .map((s) => {
-      const days = getDaysRemaining(s.visa_last_date!);
+    .map((c) => {
+      const days = getDaysRemaining(c.visa_last_date);
+      const s = c.students!;
       return {
-        id: s.id,
-        source: "student",
-        name: s.profiles?.full_name ?? "—",
+        id: c.id,
+        source: "case" as const,
+        name: s.profiles?.full_name ?? s.name ?? "—",
         school_student_id: s.school_student_id ?? null,
         nationality: s.nationality ?? null,
         passport_number: s.passport_number ?? null,
-        email: s.profiles?.email ?? null,
+        email: s.profiles?.email ?? s.email ?? null,
         phone: s.phone ?? null,
         course: s.language_level ?? null,
-        visa_last_date: s.visa_last_date!,
-        doc_status: (s.doc_status ?? "pending") as DocStatus,
+        visa_last_date: c.visa_last_date,
+        doc_status: c.doc_status,
+        completed_at: c.completed_at,
         daysRemaining: days,
         urgency: getUrgency(days),
       };
@@ -110,7 +114,7 @@ function buildRows(students: StudentWithProfile[], apps: Application[]): Row[] {
       const days = getDaysRemaining(a.visa_last_date!);
       return {
         id: a.id,
-        source: "app",
+        source: "app" as const,
         name: a.name,
         school_student_id: a.school_student_id ?? null,
         nationality: a.nationality ?? null,
@@ -120,22 +124,23 @@ function buildRows(students: StudentWithProfile[], apps: Application[]): Row[] {
         course: a.courses?.name ?? null,
         visa_last_date: a.visa_last_date!,
         doc_status: (a.doc_status ?? "pending") as DocStatus,
+        completed_at: null,
         daysRemaining: days,
         urgency: getUrgency(days),
       };
     });
 
-  return [...studentRows, ...appRows].sort((a, b) => a.daysRemaining - b.daysRemaining);
+  return [...caseRows, ...appRows].sort((a, b) => a.daysRemaining - b.daysRemaining);
 }
 
 export function DocumentNotificationPanel({
-  initialStudents,
+  initialCases,
   initialApprovedApps,
 }: {
-  initialStudents: StudentWithProfile[];
+  initialCases: StudentDocumentCaseWithStudent[];
   initialApprovedApps: Application[];
 }) {
-  const [students, setStudents] = useState<StudentWithProfile[]>(initialStudents);
+  const [cases, setCases] = useState<StudentDocumentCaseWithStudent[]>(initialCases);
   const [apps, setApps] = useState<Application[]>(initialApprovedApps);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterStatus>("all");
@@ -143,11 +148,16 @@ export function DocumentNotificationPanel({
 
   const refreshData = useCallback(async () => {
     const supabase = createClient();
-    const [{ data: s }, { data: a }] = await Promise.all([
-      supabase.from("students").select("*, profiles(email, full_name)").is("cancelled_at", null).order("created_at", { ascending: false }),
+    const [{ data: c }, { data: a }] = await Promise.all([
+      supabase
+        .from("student_document_cases")
+        .select(
+          "*, students(id, name, school_student_id, nationality, passport_number, phone, language_level, email, cancelled_at, profiles(email, full_name))"
+        )
+        .order("visa_last_date", { ascending: true }),
       supabase.from("applications").select("*, courses(name)").eq("status", "approved").order("created_at", { ascending: false }),
     ]);
-    if (s) setStudents(s as StudentWithProfile[]);
+    if (c) setCases(c as StudentDocumentCaseWithStudent[]);
     if (a) setApps(a as Application[]);
   }, []);
 
@@ -155,6 +165,7 @@ export function DocumentNotificationPanel({
     const supabase = createClient();
     const channel = supabase
       .channel("admin-doc-notifications-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "student_document_cases" }, refreshData)
       .on("postgres_changes", { event: "*", schema: "public", table: "students" }, refreshData)
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, refreshData)
       .on("postgres_changes", { event: "*", schema: "public", table: "applications" }, refreshData)
@@ -164,10 +175,11 @@ export function DocumentNotificationPanel({
 
   async function handleDocStatusChange(row: Row, status: DocStatus) {
     setUpdatingId(row.id);
-    if (row.source === "student") {
-      const res = await updateStudent(row.id, { doc_status: status });
+    if (row.source === "case") {
+      const res = await updateDocumentCase(row.id, { doc_status: status });
       if (res.success) {
-        setStudents((prev) => prev.map((s) => s.id === row.id ? { ...s, doc_status: status } : s));
+        const completedAt = status === "completed" ? new Date().toISOString() : null;
+        setCases((prev) => prev.map((c) => c.id === row.id ? { ...c, doc_status: status, completed_at: completedAt } : c));
       }
     } else {
       const res = await updateApplication(row.id, { doc_status: status });
@@ -178,7 +190,7 @@ export function DocumentNotificationPanel({
     setUpdatingId(null);
   }
 
-  const rows = useMemo(() => buildRows(students, apps), [students, apps]);
+  const rows = useMemo(() => buildRows(cases, apps), [cases, apps]);
 
   const filtered = useMemo(() => {
     let result = rows;
@@ -186,7 +198,7 @@ export function DocumentNotificationPanel({
       if (filter === "completed") {
         result = result.filter((r) => r.doc_status === "completed");
       } else {
-        result = result.filter((r) => r.urgency === filter);
+        result = result.filter((r) => r.urgency === filter && r.doc_status !== "completed");
       }
     }
     const q = search.toLowerCase();
@@ -205,10 +217,10 @@ export function DocumentNotificationPanel({
 
   const counts = useMemo(() => ({
     all: rows.length,
-    upcoming: rows.filter((r) => r.urgency === "upcoming").length,
-    need_to_prepare: rows.filter((r) => r.urgency === "need_to_prepare").length,
-    urgent: rows.filter((r) => r.urgency === "urgent").length,
-    overdue: rows.filter((r) => r.urgency === "overdue").length,
+    upcoming: rows.filter((r) => r.urgency === "upcoming" && r.doc_status !== "completed").length,
+    need_to_prepare: rows.filter((r) => r.urgency === "need_to_prepare" && r.doc_status !== "completed").length,
+    urgent: rows.filter((r) => r.urgency === "urgent" && r.doc_status !== "completed").length,
+    overdue: rows.filter((r) => r.urgency === "overdue" && r.doc_status !== "completed").length,
     completed: rows.filter((r) => r.doc_status === "completed").length,
   }), [rows]);
 
@@ -216,7 +228,7 @@ export function DocumentNotificationPanel({
     const headers = [
       "Student Name", "Student ID", "Nationality", "Passport No.",
       "Email", "Phone", "Course / Level", "Visa Last Date",
-      "Days Remaining", "Document Status", "Action Status",
+      "Days Remaining", "Document Status", "Completed Date", "Action Status",
     ];
     const escape = (v: string | number | null | undefined) => {
       if (v == null) return "";
@@ -237,6 +249,7 @@ export function DocumentNotificationPanel({
         formatDate(r.visa_last_date),
         r.daysRemaining <= 0 ? "Overdue" : r.daysRemaining,
         URGENCY_LABEL[r.urgency],
+        r.completed_at ? formatDate(r.completed_at) : "",
         escape(r.doc_status),
       ].join(",")),
     ];
@@ -271,7 +284,7 @@ export function DocumentNotificationPanel({
                 Document Submit Notification
               </CardTitle>
               <p className="text-slate-500 dark:text-slate-400 text-sm">
-                Students with visa last date within {DAYS_THRESHOLD} days
+                Students with visa last date within {DAYS_THRESHOLD} days, plus full completed case history
               </p>
             </div>
           </div>
@@ -328,13 +341,13 @@ export function DocumentNotificationPanel({
             </p>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700/50">
-              <table className="w-full table-auto border-collapse text-sm" style={{ minWidth: "1200px" }}>
+              <table className="w-full table-auto border-collapse text-sm" style={{ minWidth: "1300px" }}>
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700">
                     {[
                       "Student Name", "Student ID", "Nationality", "Passport No.",
                       "Email", "Phone", "Course / Level", "Visa Last Date",
-                      "Days Remaining", "Document Status", "Action",
+                      "Days Remaining", "Document Status", "Completed Date", "Action",
                     ].map((h) => (
                       <th
                         key={h}
@@ -376,7 +389,9 @@ export function DocumentNotificationPanel({
                         {formatDate(row.visa_last_date)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        {row.daysRemaining <= 0 ? (
+                        {row.doc_status === "completed" ? (
+                          <span className="text-slate-400 font-semibold text-xs">-</span>
+                        ) : row.daysRemaining <= 0 ? (
                           <span className="text-red-400 font-semibold text-xs">Overdue</span>
                         ) : (
                           <span className={`font-semibold text-xs ${row.daysRemaining <= 14 ? "text-orange-400" : row.daysRemaining <= 30 ? "text-yellow-400" : "text-blue-400"}`}>
@@ -385,9 +400,18 @@ export function DocumentNotificationPanel({
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${URGENCY_BADGE[row.urgency]}`}>
-                          {URGENCY_LABEL[row.urgency]}
-                        </span>
+                        {row.doc_status === "completed" ? (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${DOC_STATUS_BADGE.completed}`}>
+                            Completed
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${URGENCY_BADGE[row.urgency]}`}>
+                            {URGENCY_LABEL[row.urgency]}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                        {row.completed_at ? formatDate(row.completed_at) : "—"}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
@@ -420,7 +444,7 @@ export function DocumentNotificationPanel({
 
           {filtered.length > 0 && (
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-4">
-              Showing {filtered.length} of {rows.length} student{rows.length !== 1 ? "s" : ""}
+              Showing {filtered.length} of {rows.length} case{rows.length !== 1 ? "s" : ""}
             </p>
           )}
         </CardContent>
