@@ -1096,9 +1096,19 @@ export async function updateReceipt(id: string, data: Partial<{
 export async function deleteReceipt(id: string) {
   const supabase = await createClient();
   try {
+    const { data: before } = await supabase
+      .from("receipts")
+      .select("student_name, course_name, total_amount")
+      .eq("id", id)
+      .single();
+
     const { error } = await supabase.from("receipts").delete().eq("id", id);
     if (error) throw error;
-    logAdminActivity("delete", "receipts", id);
+    logAdminActivity("delete", "receipts", id, {
+      student_name: before?.student_name ?? null,
+      course_name: before?.course_name ?? null,
+      total_amount: before?.total_amount ?? null,
+    });
     return { success: true };
   } catch (error) {
     return { success: false, error: extractError(error, "Failed to delete receipt") };
