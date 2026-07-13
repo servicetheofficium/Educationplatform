@@ -441,6 +441,12 @@ export async function updateStudent(
 ) {
   const supabase = await createClient();
   try {
+    const { data: before } = await supabase
+      .from("students")
+      .select("*")
+      .eq("id", id)
+      .single();
+
     const { data: result, error } = await supabase
       .from("students")
       .update({ ...data, updated_at: new Date().toISOString() })
@@ -449,7 +455,17 @@ export async function updateStudent(
       .single();
 
     if (error) throw error;
-    logAdminActivity("update", "students", id, data);
+
+    const changes = Object.entries(data).reduce((acc, [field, to]) => {
+      const from = before ? (before as Record<string, unknown>)[field] ?? null : null;
+      if (from !== to) acc.push({ field, from, to });
+      return acc;
+    }, [] as { field: string; from: unknown; to: unknown }[]);
+
+    logAdminActivity("update", "students", id, {
+      student_name: before?.name ?? result?.name ?? null,
+      changes,
+    });
     return { success: true, data: result };
   } catch (error) {
     return {
