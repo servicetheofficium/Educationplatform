@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Users, Search } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Users, Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
 } from "@/components/ui/sheet";
 import { getAgents, createAgent, updateAgent, deleteAgent } from "@/lib/crud";
+import { createClient } from "@/utils/supabase/client";
 import type { Agent } from "@/lib/types";
 
 const PER_PAGE = 10;
@@ -77,6 +78,21 @@ export function AgentsPanel({ initialAgents }: { initialAgents?: Agent[] } = {})
       setLoading(false);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const refreshData = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase.from("agents").select("*").order("name", { ascending: true });
+    if (data) setAgents(data as Agent[]);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("admin-agents-rt")
+      .on("postgres_changes", { event: "*", schema: "public", table: "agents" }, refreshData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [refreshData]);
 
   useEffect(() => {
     if (editingAgent) {
@@ -170,6 +186,34 @@ export function AgentsPanel({ initialAgents }: { initialAgents?: Agent[] } = {})
     setSaving(false);
   }
 
+  function exportCSV(data: Agent[]) {
+    const headers = ["Agent Name", "Phone", "Email", "Nationality", "Company Name", "ID/Passport No."];
+    const escape = (v: string | null | undefined) => {
+      if (v == null) return "";
+      const s = String(v);
+      return s.includes(",") || s.includes('"') || s.includes("\n")
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csvRows = [
+      headers.join(","),
+      ...data.map((a) => [
+        escape(a.name),
+        escape(a.phone),
+        escape(a.email),
+        escape(a.nationality),
+        escape(a.company_name),
+        escape(a.id_passport_number),
+      ].join(",")),
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `agents_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <main className="flex-1 min-w-0 px-8 py-10 overflow-auto">
       <div className="flex items-center justify-between mb-8">
@@ -182,10 +226,18 @@ export function AgentsPanel({ initialAgents }: { initialAgents?: Agent[] } = {})
             <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Manage partner agents</p>
           </div>
         </div>
-        <Button className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2"
-          onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
-          <Plus size={16} /> Add Agent
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button className="h-9 bg-brand-600 hover:bg-brand-700 flex items-center gap-2"
+            onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
+            <Plus size={16} /> Add Agent
+          </Button>
+          <Button
+            onClick={() => exportCSV(filtered)}
+            className="h-9 flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 shrink-0"
+          >
+            <Download size={16} /> Export CSV
+          </Button>
+        </div>
       </div>
 
       <div className="relative mb-4 max-w-sm">

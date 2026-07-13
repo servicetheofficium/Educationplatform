@@ -12,6 +12,12 @@ import { ChevronLeft, ChevronRight, History, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { createClient } from "@/utils/supabase/client";
 import type { AdminActivityLog } from "@/lib/types";
 
@@ -29,11 +35,32 @@ function formatDateTime(dateStr: string) {
   });
 }
 
+type FieldChange = { field: string; from: unknown; to: unknown };
+type ChangeDetails = { student_name?: string | null; changes: FieldChange[] };
+
+function isChangeDetails(details: Record<string, unknown>): details is ChangeDetails {
+  return Array.isArray((details as { changes?: unknown }).changes);
+}
+
+function formatValue(v: unknown) {
+  if (v === null || v === undefined || v === "") return "empty";
+  return String(v);
+}
+
+function summarizeChanges(details: Record<string, unknown> | null): string | null {
+  if (!details || !isChangeDetails(details)) return null;
+  const name = details.student_name;
+  if (details.changes.length === 0) return name ? `${name}: no changes` : "No changes";
+  const parts = details.changes.map((c) => `${c.field} ${formatValue(c.from)} → ${formatValue(c.to)}`).join(", ");
+  return name ? `${name}: ${parts}` : parts;
+}
+
 const columnHelper = createColumnHelper<AdminActivityLog>();
 
 export function ActivityLogPanel({ initialLogs }: { initialLogs: AdminActivityLog[] }) {
   const [logs, setLogs] = useState<AdminActivityLog[]>(initialLogs);
   const [search, setSearch] = useState("");
+  const [detailsLog, setDetailsLog] = useState<AdminActivityLog | null>(null);
 
   const refreshData = useCallback(async () => {
     const supabase = createClient();
@@ -93,12 +120,18 @@ export function ActivityLogPanel({ initialLogs }: { initialLogs: AdminActivityLo
     }),
     columnHelper.accessor("details", {
       header: "Details",
-      cell: ({ getValue }) => {
+      cell: ({ getValue, row }) => {
         const details = getValue();
+        if (!details) return <span className="text-slate-500 dark:text-slate-400 text-xs">—</span>;
+        const summary = summarizeChanges(details);
         return (
-          <span className="text-slate-500 dark:text-slate-400 text-xs truncate block max-w-xs">
-            {details ? JSON.stringify(details) : "—"}
-          </span>
+          <button
+            type="button"
+            onClick={() => setDetailsLog(row.original)}
+            className="text-slate-500 dark:text-slate-400 text-xs truncate block max-w-xs text-left hover:text-brand-500 dark:hover:text-brand-400 hover:underline"
+          >
+            {summary ?? JSON.stringify(details)}
+          </button>
         );
       },
     }),
@@ -224,6 +257,55 @@ export function ActivityLogPanel({ initialLogs }: { initialLogs: AdminActivityLo
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={detailsLog !== null} onOpenChange={(open) => { if (!open) setDetailsLog(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Activity Details</DialogTitle>
+          </DialogHeader>
+          {detailsLog && (
+            <div className="space-y-2 text-sm">
+              <p className="text-slate-500 dark:text-slate-400">
+                {formatDateTime(detailsLog.created_at)} · {detailsLog.admin_name ?? "Unknown"} ·{" "}
+                <span className="capitalize">{detailsLog.action}</span> · {detailsLog.target_table}
+                {detailsLog.details && isChangeDetails(detailsLog.details) && detailsLog.details.student_name
+                  ? ` · ${detailsLog.details.student_name}`
+                  : ""}
+              </p>
+              {detailsLog.details && isChangeDetails(detailsLog.details) ? (
+                detailsLog.details.changes.length === 0 ? (
+                  <p className="text-slate-500 dark:text-slate-400 text-xs">No field changes.</p>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400">
+                          <th className="text-left px-3 py-2 font-medium">Field</th>
+                          <th className="text-left px-3 py-2 font-medium">From</th>
+                          <th className="text-left px-3 py-2 font-medium">To</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detailsLog.details.changes.map((c, i) => (
+                          <tr key={i} className="border-t border-slate-200 dark:border-slate-700">
+                            <td className="px-3 py-2 font-mono text-slate-600 dark:text-slate-300">{c.field}</td>
+                            <td className="px-3 py-2 text-slate-500 dark:text-slate-400">{formatValue(c.from)}</td>
+                            <td className="px-3 py-2 text-slate-800 dark:text-white">{formatValue(c.to)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              ) : (
+                <pre className="whitespace-pre-wrap break-words rounded-lg bg-slate-100 dark:bg-slate-900 p-3 text-xs text-slate-700 dark:text-slate-300 max-h-96 overflow-y-auto">
+                  {JSON.stringify(detailsLog.details, null, 2)}
+                </pre>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

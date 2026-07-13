@@ -167,6 +167,7 @@ type Row = {
   language_level: "beginner" | "intermediate" | "advanced" | null;
   language: string | null;
   enrolled_date: string;
+  created_at: string;
   visa_status: VisaStatus | null;
   visa_change_date: string | null;
   visa_last_date: string | null;
@@ -216,6 +217,7 @@ function buildRows(students: StudentWithProfile[]): Row[] {
         language_level: s.language_level ?? null,
         language: course?.language ?? null,
         enrolled_date: s.enrollment_date,
+        created_at: s.created_at,
         visa_status: s.visa_status ?? null,
         visa_change_date: s.visa_change_date ?? null,
         visa_last_date: s.visa_last_date ?? null,
@@ -223,7 +225,8 @@ function buildRows(students: StudentWithProfile[]): Row[] {
     })
     .sort((a, b) => {
       const diff = new Date(a.enrolled_date).getTime() - new Date(b.enrolled_date).getTime();
-      return diff !== 0 ? diff : a.id.localeCompare(b.id);
+      if (diff !== 0) return diff;
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     })
     .map((r, i) => ({ ...r, num: i + 1 }));
 }
