@@ -48,6 +48,7 @@ function generateReceiptNo(existing: Receipt[]): string {
 // ─── form type ───────────────────────────────────────────────────────────────
 
 type ReceiptForm = {
+  receipt_no: string;
   student_name: string;
   phone: string;
   email: string;
@@ -70,6 +71,7 @@ type ReceiptForm = {
 };
 
 const EMPTY_FORM: ReceiptForm = {
+  receipt_no: "",
   student_name: "",
   phone: "",
   email: "",
@@ -146,7 +148,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
   const changeAmount = (form.paid_amount || 0) - totalAmount;
 
   const openCreate = () => {
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, receipt_no: generateReceiptNo(receipts) });
     setEditingReceipt(null);
     setSaveError(null);
     setFormOpen(true);
@@ -162,6 +164,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       if (r.visa_fee > 0) items.push({ name: "Visa Fee", amount: r.visa_fee });
     }
     setForm({
+      receipt_no: r.receipt_no,
       student_name: r.student_name,
       phone: r.phone ?? "",
       email: r.email ?? "",
@@ -239,7 +242,9 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
     setSaving(true);
     setSaveError(null);
     const firstItemName = form.items[0]?.name || "—";
+    const receiptNo = form.receipt_no.trim() || generateReceiptNo(receipts);
     const payload = {
+      receipt_no: receiptNo,
       student_name: form.student_name,
       phone: form.phone || null,
       email: form.email || null,
@@ -275,7 +280,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
         setSaveError(res.error ?? "Update failed");
       }
     } else {
-      const res = await createReceipt({ ...payload, receipt_no: generateReceiptNo(receipts) });
+      const res = await createReceipt(payload);
       if (res.success && res.data) {
         setReceipts((prev) => [res.data as Receipt, ...prev]);
         setFormOpen(false);
@@ -432,6 +437,16 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                 </Select>
               </div>
             )}
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Receipt No</label>
+              <Input
+                placeholder="R-000001"
+                value={form.receipt_no}
+                onChange={(e) => setForm((p) => ({ ...p, receipt_no: e.target.value }))}
+                className="font-mono"
+              />
+            </div>
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Student Name *</label>

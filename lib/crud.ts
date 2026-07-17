@@ -1054,6 +1054,7 @@ export async function createReceipt(data: {
 }
 
 export async function updateReceipt(id: string, data: Partial<{
+  receipt_no: string;
   student_name: string;
   phone: string | null;
   email: string | null;

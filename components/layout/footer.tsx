@@ -36,6 +36,8 @@ export function Footer() {
                 <Link
                   key={s.platform}
                   href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-brand-600 hover:text-white transition-all"
                 >
                   <span className="sr-only">{s.platform}</span>
