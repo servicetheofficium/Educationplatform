@@ -139,7 +139,8 @@ export default function ReceiptPrintPage() {
             <h1>KNC School</h1>
             <p>Language &amp; Education Center</p>
             <p>Bangkok, Thailand</p>
-            <p>Tel: 020339299</p>
+            <p>Tel: 02-033-9299</p>
+            <p>Mobile: 092-247-9309</p>
           </div>
 
           <div className="line" />
