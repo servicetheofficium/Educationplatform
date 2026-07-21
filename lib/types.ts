@@ -27,6 +27,7 @@ export type Student = {
   school_student_id: string | null;
   cancelled_at: string | null;
   doc_status: "pending" | "submitted" | "checked" | "completed" | null;
+  note: string | null;
   created_at: string;
 };
 

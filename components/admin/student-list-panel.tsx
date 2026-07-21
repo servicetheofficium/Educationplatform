@@ -12,6 +12,7 @@ import { ChevronLeft, ChevronRight, Users, Pencil, XCircle, Search, Plus, Downlo
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -171,6 +172,7 @@ type Row = {
   visa_status: VisaStatus | null;
   visa_change_date: string | null;
   visa_last_date: string | null;
+  note: string | null;
 };
 
 type EditForm = {
@@ -186,6 +188,7 @@ type EditForm = {
   visa_status: VisaStatus | "";
   visa_change_date: string;
   visa_last_date: string;
+  note: string;
 };
 
 function currentEnrollment(sc: StudentWithProfile["student_courses"]) {
@@ -221,6 +224,7 @@ function buildRows(students: StudentWithProfile[]): Row[] {
         visa_status: s.visa_status ?? null,
         visa_change_date: s.visa_change_date ?? null,
         visa_last_date: s.visa_last_date ?? null,
+        note: s.note ?? null,
       };
     })
     .sort((a, b) => {
@@ -253,7 +257,7 @@ export function StudentListPanel({
   const [editForm, setEditForm] = useState<EditForm>({
     name: "", email: "", school_student_id: "", nationality: "", passport_number: "", phone: "",
     duration_months: "", course_id: "", language_level: "",
-    visa_status: "", visa_change_date: "", visa_last_date: "",
+    visa_status: "", visa_change_date: "", visa_last_date: "", note: "",
   });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -362,6 +366,7 @@ export function StudentListPanel({
       visa_status:     row.visa_status ?? "",
       visa_change_date: row.visa_change_date ?? "",
       visa_last_date:  row.visa_last_date ?? "",
+      note:            row.note ?? "",
     });
   }
 
@@ -380,6 +385,7 @@ export function StudentListPanel({
         visa_status:     (editForm.visa_status || undefined) as VisaStatus | undefined,
         visa_change_date: editForm.visa_change_date || undefined,
         visa_last_date:  editForm.visa_last_date || undefined,
+        note:            editForm.note,
       };
 
       let res: { success: boolean; error?: string };
@@ -444,6 +450,7 @@ export function StudentListPanel({
           visa_status:     sharedPayload.visa_status     ?? r.visa_status,
           visa_change_date: sharedPayload.visa_change_date ?? r.visa_change_date,
           visa_last_date:  sharedPayload.visa_last_date  ?? r.visa_last_date,
+          note:            sharedPayload.note,
         } : r));
         setEditingRow(null);
       } else {
@@ -460,7 +467,7 @@ export function StudentListPanel({
   function exportCSV(data: Row[]) {
     const headers = [
       "#", "Student Name", "Student ID", "Nationality", "Passport No.", "Phone",
-      "Duration (mo.)", "Course / Level", "Visa Change Date", "Visa Last Date", "Visa Status", "Enrolled Date",
+      "Duration (mo.)", "Course / Level", "Visa Change Date", "Visa Last Date", "Visa Status", "Note", "Enrolled Date",
     ];
     const escape = (v: string | null | undefined) => {
       if (v == null) return "";
@@ -482,6 +489,7 @@ export function StudentListPanel({
         r.visa_change_date ? formatDate(r.visa_change_date) : "",
         r.visa_last_date ? formatDate(r.visa_last_date) : "",
         r.visa_status ? VISA_LABELS[r.visa_status] : "",
+        escape(r.note),
         formatDate(r.enrolled_date),
       ].join(",")),
     ];
@@ -571,6 +579,7 @@ export function StudentListPanel({
                   ["Visa Change Date", r.visa_change_date ? formatDate(r.visa_change_date) : null],
                   ["Visa Last Date", r.visa_last_date ? formatDate(r.visa_last_date) : null],
                   ["Visa Status", r.visa_status ? VISA_LABELS[r.visa_status] : null],
+                  ["Note", r.note],
                 ] as [string, string | null][]).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-4">
                     <span className="text-slate-500 dark:text-slate-400 shrink-0">{label}</span>
@@ -668,6 +677,22 @@ export function StudentListPanel({
               ))}
             </SelectContent>
           </Select>
+        );
+      },
+      size: 160,
+    }),
+    columnHelper.accessor("note", {
+      id: "note",
+      header: "Note",
+      cell: ({ getValue }) => {
+        const note = getValue();
+        return (
+          <span
+            title={note ?? undefined}
+            className="text-slate-600 dark:text-slate-300 block max-w-[180px] truncate"
+          >
+            {note || <span className="text-slate-400 dark:text-slate-600">—</span>}
+          </span>
         );
       },
       size: 160,
@@ -932,6 +957,10 @@ export function StudentListPanel({
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Visa Last Date</label>
               <DatePicker value={editForm.visa_last_date} onChange={(v) => setEditForm((f) => ({ ...f, visa_last_date: v }))} placeholder="Select visa last date" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Note</label>
+              <Textarea className="w-full" rows={3} placeholder="Internal note about this student..." value={editForm.note} onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))} />
             </div>
             {saveError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{saveError}</p>}
           </div>
