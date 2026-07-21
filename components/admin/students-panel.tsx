@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Users, FileText, XCircle, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, FileText, XCircle, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getStudents, getApplications, updateApplication, updateStudent } from "@/lib/crud";
+import { getStudents, getApplications, updateApplication, updateStudent, deleteApplication } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
 import type { StudentWithProfile, Application } from "@/lib/types";
 
@@ -161,6 +161,16 @@ export function StudentsPanel({
       } else if (prev === "approved" && status !== "approved") {
         onEnrollmentChange?.(-1);
       }
+    }
+    setUpdatingId(null);
+  }
+
+  async function handleDeleteApplication(id: string) {
+    if (!confirm("Delete this application? This cannot be undone.")) return;
+    setUpdatingId(id);
+    const res = await deleteApplication(id);
+    if (res.success) {
+      setApplications((apps) => apps.filter((a) => a.id !== id));
     }
     setUpdatingId(null);
   }
@@ -352,6 +362,7 @@ export function StudentsPanel({
                       <TableHead>Course</TableHead>
                       <TableHead>Message</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -362,7 +373,7 @@ export function StudentsPanel({
                         <React.Fragment key={app.id}>
                           {isNewGroup && (
                             <TableRow className="bg-slate-100/60 dark:bg-slate-700/40">
-                              <TableCell colSpan={6} className="py-2 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                              <TableCell colSpan={7} className="py-2 px-4 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                                 <span className="inline-flex items-center gap-1.5">
                                   <span className={`w-2 h-2 rounded-full ${app.status === "pending" ? "bg-yellow-400" : app.status === "contacted" ? "bg-blue-400" : app.status === "approved" ? "bg-green-400" : "bg-red-400"}`} />
                                   {app.status}
@@ -409,6 +420,18 @@ export function StudentsPanel({
                                   </SelectContent>
                                 </Select>
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={updatingId === app.id}
+                                onClick={() => handleDeleteApplication(app.id)}
+                                className="text-red-400 hover:text-red-300 h-auto p-0 flex items-center gap-1 text-xs"
+                              >
+                                <Trash2 size={13} />
+                                Delete
+                              </Button>
                             </TableCell>
                           </TableRow>
                         </React.Fragment>

@@ -437,6 +437,7 @@ export async function updateStudent(
     school_student_id: string;
     cancelled_at: string | null;
     doc_status: "pending" | "submitted" | "checked" | "completed";
+    note: string | null;
   }>
 ) {
   const supabase = await createClient();

@@ -62,17 +62,6 @@ export function Footer() {
                   </Link>
                 </li>
               ))}
-              <li>
-                <Link
-                  href="#"
-                  className={cn(
-                    buttonVariants({ variant: "link" }),
-                    "text-slate-400 hover:text-brand-400 p-0 h-auto no-underline hover:no-underline"
-                  )}
-                >
-                  Privacy Policy
-                </Link>
-              </li>
             </ul>
           </div>
           <div>
