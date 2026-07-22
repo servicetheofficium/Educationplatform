@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import type { AdminUser } from "./types";
@@ -45,7 +46,7 @@ export async function logout() {
   redirect("/");
 }
 
-export async function getAdminUser(): Promise<AdminUser | null> {
+export const getAdminUser = cache(async (): Promise<AdminUser | null> => {
   const supabase = await createClient();
 
   const {
@@ -61,4 +62,4 @@ export async function getAdminUser(): Promise<AdminUser | null> {
 
   if (!userData || userData.user_type !== "admin") return null;
   return userData as AdminUser;
-}
+});
