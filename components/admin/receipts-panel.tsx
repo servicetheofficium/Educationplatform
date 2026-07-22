@@ -20,7 +20,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/utils/supabase/client";
 import { createReceipt, updateReceipt, deleteReceipt } from "@/lib/crud";
-import type { Receipt, ReceiptItem, StudentWithProfile, Course, DocumentService } from "@/lib/types";
+import type { Receipt, ReceiptItem, StudentWithProfile, Course, DocumentService, Agent } from "@/lib/types";
 import { motion } from "motion/react";
 
 const PER_PAGE = 10;
@@ -100,9 +100,10 @@ interface ReceiptsPanelProps {
   initialStudents: StudentWithProfile[];
   initialCourses: Course[];
   initialServices: DocumentService[];
+  initialAgents: Agent[];
 }
 
-export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses, initialServices }: ReceiptsPanelProps) {
+export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses, initialServices, initialAgents }: ReceiptsPanelProps) {
   const [receipts, setReceipts] = useState<Receipt[]>(initialReceipts);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -199,6 +200,19 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       phone: s.phone ?? "",
       email: s.profiles?.email ?? s.email ?? "",
       passport_no: s.passport_number ?? p.passport_no,
+    }));
+  };
+
+  const pickAgent = (id: string | null) => {
+    if (!id) return;
+    const a = initialAgents.find((a) => a.id === id);
+    if (!a) return;
+    setForm((p) => ({
+      ...p,
+      agent_name: a.name ?? "",
+      agent_phone: a.phone ?? "",
+      agent_email: a.email ?? "",
+      agent_nationality: a.nationality ?? "",
     }));
   };
 
@@ -648,6 +662,22 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
 
             <div className="space-y-3 border-t border-slate-200 dark:border-slate-700 pt-3">
               <label className="text-sm font-semibold">Agent Information</label>
+
+              {initialAgents.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Quick-fill from Agent</label>
+                  <Select onValueChange={pickAgent}>
+                    <SelectTrigger><SelectValue placeholder="Select agent…" /></SelectTrigger>
+                    <SelectContent>
+                      {initialAgents.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name}{a.company_name ? ` — ${a.company_name}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Agent Name</label>
