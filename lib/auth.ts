@@ -1,6 +1,7 @@
 "use server";
 
 import { cache } from "react";
+import { headers } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import type { AdminUser } from "./types";
@@ -49,15 +50,22 @@ export async function logout() {
 export const getAdminUser = cache(async (): Promise<AdminUser | null> => {
   const supabase = await createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // proxy.ts already ran auth.getUser() for every /admin request and stamped
+  // the verified id here — reuse it instead of paying for a second Auth round trip.
+  let userId = (await headers()).get("x-user-id");
+
+  if (!userId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+    userId = user.id;
+  }
 
   const { data: userData } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   if (!userData || userData.user_type !== "admin") return null;
