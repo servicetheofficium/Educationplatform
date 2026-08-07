@@ -20,6 +20,7 @@ export type Student = {
   language_level: "beginner" | "intermediate" | "advanced";
   nationality: string | null;
   passport_number: string | null;
+  date_of_birth: string | null;
   visa_status: VisaStatus | null;
   duration_months: string | null;
   visa_change_date: string | null;

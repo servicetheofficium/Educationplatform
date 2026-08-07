@@ -5,6 +5,7 @@ import {
   DayPicker,
   getDefaultClassNames,
   type DayButton,
+  type DropdownProps,
   type Locale,
 } from "react-day-picker"
 
@@ -164,6 +165,7 @@ function Calendar({
         DayButton: ({ ...props }) => (
           <CalendarDayButton locale={locale} {...props} />
         ),
+        Dropdown: CalendarDropdown,
         WeekNumber: ({ children, ...props }) => {
           return (
             <td {...props}>
@@ -215,6 +217,79 @@ function CalendarDayButton({
       )}
       {...props}
     />
+  )
+}
+
+function CalendarDropdown({
+  options = [],
+  value,
+  onChange,
+  disabled,
+  className,
+  "aria-label": ariaLabel,
+}: DropdownProps) {
+  const [open, setOpen] = React.useState(false)
+  const rootRef = React.useRef<HTMLDivElement>(null)
+  const listRef = React.useRef<HTMLDivElement>(null)
+  const selected = options.find((o) => o.value === value)
+
+  React.useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [open])
+
+  React.useEffect(() => {
+    if (!open) return
+    listRef.current
+      ?.querySelector<HTMLElement>('[data-selected="true"]')
+      ?.scrollIntoView({ block: "center" })
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((p) => !p)}
+        className={cn(
+          "flex items-center gap-1 rounded-(--cell-radius) px-1.5 py-1 text-sm font-medium hover:bg-accent disabled:opacity-50",
+          className
+        )}
+      >
+        {selected?.label}
+        <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+      </button>
+      {open && (
+        <div
+          ref={listRef}
+          className="absolute z-[300] top-full left-1/2 -translate-x-1/2 mt-1 max-h-[336px] w-24 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg p-1"
+        >
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              disabled={opt.disabled}
+              data-selected={opt.value === value}
+              onClick={() => {
+                onChange?.({ target: { value: String(opt.value) } } as React.ChangeEvent<HTMLSelectElement>)
+                setOpen(false)
+              }}
+              className={cn(
+                "block w-full rounded-md px-2 py-1.5 text-center text-sm hover:bg-accent disabled:opacity-40 disabled:pointer-events-none",
+                opt.value === value ? "bg-primary text-primary-foreground" : "text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
