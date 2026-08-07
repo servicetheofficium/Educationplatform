@@ -160,6 +160,7 @@ type Row = {
   school_student_id: string | null;
   nationality: string | null;
   passport_number: string | null;
+  date_of_birth: string | null;
   phone: string | null;
   duration_months: string | null;
   course_level: string | null;
@@ -181,6 +182,7 @@ type EditForm = {
   school_student_id: string;
   nationality: string;
   passport_number: string;
+  date_of_birth: string;
   phone: string;
   duration_months: string;
   course_id: string;
@@ -212,6 +214,7 @@ function buildRows(students: StudentWithProfile[]): Row[] {
         school_student_id: s.school_student_id ?? null,
         nationality: s.nationality ?? null,
         passport_number: s.passport_number ?? null,
+        date_of_birth: s.date_of_birth ?? null,
         phone: s.phone ?? null,
         duration_months: s.duration_months ?? null,
         course_level: courseLevelLabel(course, s.language_level),
@@ -255,7 +258,7 @@ export function StudentListPanel({
 
   const [editingRow, setEditingRow] = useState<Row | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
-    name: "", email: "", school_student_id: "", nationality: "", passport_number: "", phone: "",
+    name: "", email: "", school_student_id: "", nationality: "", passport_number: "", date_of_birth: "", phone: "",
     duration_months: "", course_id: "", language_level: "",
     visa_status: "", visa_change_date: "", visa_last_date: "", note: "",
   });
@@ -269,7 +272,7 @@ export function StudentListPanel({
   const [addOpen, setAddOpen] = useState(false);
   const [courses, setCourses] = useState<Course[]>(initialCourses ?? []);
   const [addForm, setAddForm] = useState({
-    name: "", email: "", phone: "", nationality: "", passport_number: "",
+    name: "", email: "", phone: "", nationality: "", passport_number: "", date_of_birth: "",
     school_student_id: "",
     course_id: "", duration_months: "", visa_status: "" as VisaStatus | "",
     visa_change_date: "", visa_last_date: "",
@@ -317,7 +320,7 @@ export function StudentListPanel({
 
   function openAdd() {
     setAddError(null);
-    setAddForm({ name: "", email: "", phone: "", nationality: "", passport_number: "", school_student_id: "", course_id: "", duration_months: "", visa_status: "", visa_change_date: "", visa_last_date: "" });
+    setAddForm({ name: "", email: "", phone: "", nationality: "", passport_number: "", date_of_birth: "", school_student_id: "", course_id: "", duration_months: "", visa_status: "", visa_change_date: "", visa_last_date: "" });
     setAddOpen(true);
   }
 
@@ -331,6 +334,7 @@ export function StudentListPanel({
       phone: addForm.phone || undefined,
       nationality: addForm.nationality || undefined,
       passport_number: addForm.passport_number || undefined,
+      date_of_birth: addForm.date_of_birth || undefined,
       school_student_id: addForm.school_student_id || undefined,
       duration_months: addForm.duration_months || undefined,
       visa_status: (addForm.visa_status || undefined) as VisaStatus | undefined,
@@ -359,6 +363,7 @@ export function StudentListPanel({
       school_student_id: row.school_student_id ?? "",
       nationality:       row.nationality ?? "",
       passport_number: row.passport_number ?? "",
+      date_of_birth:   row.date_of_birth ?? "",
       phone:           row.phone ?? "",
       duration_months: row.duration_months ?? "",
       course_id:       row.course_id ?? "",
@@ -380,6 +385,7 @@ export function StudentListPanel({
         email:           editForm.email || undefined,
         nationality:     editForm.nationality || undefined,
         passport_number: editForm.passport_number || undefined,
+        date_of_birth:   editForm.date_of_birth || undefined,
         phone:           editForm.phone || undefined,
         duration_months: editForm.duration_months || undefined,
         visa_status:     (editForm.visa_status || undefined) as VisaStatus | undefined,
@@ -445,6 +451,7 @@ export function StudentListPanel({
           language_level:  updatedLangLevel,
           nationality:     sharedPayload.nationality     ?? r.nationality,
           passport_number: sharedPayload.passport_number ?? r.passport_number,
+          date_of_birth:   sharedPayload.date_of_birth   ?? r.date_of_birth,
           phone:           sharedPayload.phone           ?? r.phone,
           duration_months: sharedPayload.duration_months ?? r.duration_months,
           visa_status:     sharedPayload.visa_status     ?? r.visa_status,
@@ -466,7 +473,7 @@ export function StudentListPanel({
 
   function exportCSV(data: Row[]) {
     const headers = [
-      "#", "Student Name", "Student ID", "Nationality", "Passport No.", "Phone",
+      "#", "Student Name", "Student ID", "DOB", "Nationality", "Passport No.", "Phone",
       "Duration (mo.)", "Course / Level", "Visa Change Date", "Visa Last Date", "Visa Status", "Note", "Enrolled Date",
     ];
     const escape = (v: string | null | undefined) => {
@@ -481,6 +488,7 @@ export function StudentListPanel({
         r.num,
         escape(r.name),
         escape(r.school_student_id),
+        r.date_of_birth ? formatDate(r.date_of_birth) : "",
         escape(r.nationality),
         escape(r.passport_number),
         escape(r.phone),
@@ -572,6 +580,7 @@ export function StudentListPanel({
                 {([
                   ["Nationality", r.nationality],
                   ["Passport No.", r.passport_number],
+                  ["Date of Birth", r.date_of_birth ? formatDate(r.date_of_birth) : null],
                   ["Phone", r.phone],
                   ["Duration", r.duration_months || null],
                   ["Course / Level", r.course_level],
@@ -602,6 +611,12 @@ export function StudentListPanel({
         </span>
       ),
       size: 130,
+    }),
+    columnHelper.accessor("date_of_birth", {
+      id: "date_of_birth",
+      header: "DOB",
+      cell: ({ getValue }) => <span className="text-slate-600 dark:text-slate-300 whitespace-nowrap">{getValue() ? formatDate(getValue()!) : "—"}</span>,
+      size: 100,
     }),
     columnHelper.accessor("nationality", {
       id: "nationality",
@@ -925,6 +940,10 @@ export function StudentListPanel({
               <Input className="w-full" placeholder="e.g. AB123456" value={editForm.passport_number} onChange={(e) => setEditForm((f) => ({ ...f, passport_number: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
+              <label className="text-sm font-medium">Date of Birth</label>
+              <DatePicker value={editForm.date_of_birth} onChange={(v) => setEditForm((f) => ({ ...f, date_of_birth: v }))} placeholder="Select date of birth" fromYear={1940} toYear={new Date().getFullYear() + 5} />
+            </div>
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">Phone</label>
               <Input className="w-full" placeholder="e.g. 0812345678" value={editForm.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
             </div>
@@ -1018,6 +1037,10 @@ export function StudentListPanel({
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Passport No.</label>
               <Input className="w-full" placeholder="e.g. AB123456" value={addForm.passport_number} onChange={(e) => setAddForm((f) => ({ ...f, passport_number: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Date of Birth</label>
+              <DatePicker value={addForm.date_of_birth} onChange={(v) => setAddForm((f) => ({ ...f, date_of_birth: v }))} placeholder="Select date of birth" fromYear={1940} toYear={new Date().getFullYear() + 5} />
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Student ID</label>

@@ -12,9 +12,11 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  fromYear?: number;
+  toYear?: number;
 }
 
-export function DatePicker({ value, onChange, placeholder = "Pick a date", className }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = "Pick a date", className, fromYear = 2015, toYear = 2035 }: DatePickerProps) {
   const selected = value ? parseISO(value) : undefined;
 
   return (
@@ -34,8 +36,9 @@ export function DatePicker({ value, onChange, placeholder = "Pick a date", class
         <Calendar
           mode="single"
           captionLayout="dropdown"
-          startMonth={new Date(2015, 0)}
-          endMonth={new Date(2035, 11)}
+          startMonth={new Date(fromYear, 0)}
+          endMonth={new Date(toYear, 11)}
+          defaultMonth={selected}
           className="w-auto [--cell-size:auto]"
           selected={selected}
           onSelect={(date) => onChange(date ? format(date, "yyyy-MM-dd") : "")}
