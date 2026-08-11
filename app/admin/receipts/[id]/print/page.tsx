@@ -23,6 +23,28 @@ export default function ReceiptPrintPage() {
   const params = useParams();
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    const el = document.querySelector(".receipt") as HTMLElement | null;
+    if (!el) return;
+    setDownloading(true);
+    try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import("html2canvas-pro"),
+        import("jspdf"),
+      ]);
+      const canvas = await html2canvas(el, { scale: 3, backgroundColor: "#ffffff" });
+      const imgData = canvas.toDataURL("image/png");
+      const pdfWidth = 80;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdf = new jsPDF({ unit: "mm", format: [pdfWidth, pdfHeight] });
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${receipt?.receipt_no ?? "receipt"}.pdf`);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -114,6 +136,15 @@ export default function ReceiptPrintPage() {
           font-weight: bold;
           border: none;
           cursor: pointer;
+        }
+
+        .download-button {
+          background: #10b981;
+        }
+
+        .print-button:disabled {
+          opacity: 0.6;
+          cursor: default;
         }
 
         @media print {
@@ -270,6 +301,13 @@ export default function ReceiptPrintPage() {
 
         <button className="print-button" onClick={() => window.print()}>
           Print Receipt
+        </button>
+        <button
+          className="print-button download-button"
+          onClick={handleDownloadPdf}
+          disabled={downloading}
+        >
+          {downloading ? "Generating…" : "Download PDF"}
         </button>
       </main>
     </>
