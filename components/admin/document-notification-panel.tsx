@@ -107,7 +107,7 @@ function buildRows(cases: StudentDocumentCaseWithStudent[], apps: Application[])
 
   const appRows: Row[] = apps
     .filter((a) => {
-      if (!a.visa_last_date) return false;
+      if (!a.visa_last_date || !a.visa_status) return false;
       return getDaysRemaining(a.visa_last_date) <= DAYS_THRESHOLD;
     })
     .map((a) => {

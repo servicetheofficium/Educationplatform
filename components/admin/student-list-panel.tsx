@@ -412,7 +412,7 @@ export function StudentListPanel({
         school_student_id: editForm.school_student_id || undefined,
       };
       res = await updateStudent(editingRow.id, studentPayload);
-      if (res.success && visaDatesChanged && editForm.visa_last_date) {
+      if (res.success && visaDatesChanged && editForm.visa_last_date && editForm.visa_status) {
         await createDocumentCase({
           student_id: editingRow.id,
           visa_status: editForm.visa_status || undefined,
