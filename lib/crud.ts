@@ -626,7 +626,7 @@ export async function getAgents() {
     const { data, error } = await supabase
       .from("agents")
       .select("*")
-      .order("name", { ascending: true });
+      .order("created_at", { ascending: true });
 
     if (error) throw error;
     return { success: true, data: data || [] };

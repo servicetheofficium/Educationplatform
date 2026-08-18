@@ -81,7 +81,7 @@ export function AgentsPanel({ initialAgents }: { initialAgents?: Agent[] } = {})
 
   const refreshData = useCallback(async () => {
     const supabase = createClient();
-    const { data } = await supabase.from("agents").select("*").order("name", { ascending: true });
+    const { data } = await supabase.from("agents").select("*").order("created_at", { ascending: true });
     if (data) setAgents(data as Agent[]);
   }, []);
 
@@ -144,7 +144,7 @@ export function AgentsPanel({ initialAgents }: { initialAgents?: Agent[] } = {})
       id_passport_number: form.id_passport_number || undefined,
     });
     if (res.success && res.data) {
-      setAgents((prev) => [...prev, res.data as Agent].sort((a, b) => a.name.localeCompare(b.name)));
+      setAgents((prev) => [...prev, res.data as Agent].sort((a, b) => a.created_at.localeCompare(b.created_at)));
       setCreateOpen(false);
       setForm(EMPTY_FORM);
     }
@@ -166,7 +166,7 @@ export function AgentsPanel({ initialAgents }: { initialAgents?: Agent[] } = {})
     if (res.success && res.data) {
       setAgents((prev) =>
         prev.map((a) => (a.id === editingAgent.id ? (res.data as Agent) : a))
-          .sort((a, b) => a.name.localeCompare(b.name))
+          .sort((a, b) => a.created_at.localeCompare(b.created_at))
       );
       setEditingAgent(null);
     } else {
