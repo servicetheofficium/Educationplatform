@@ -167,6 +167,7 @@ export type Receipt = {
   agent_nationality: string | null;
   agent_company_register_number: string | null;
   agent_note: string | null;
+  parent_receipt_id: string | null;
   created_at: string;
 };
 
