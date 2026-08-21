@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus, Printer, Trash2, Pencil, Search, X, ChevronLeft, ChevronRight, Receipt as ReceiptIcon,
 } from "lucide-react";
@@ -68,6 +69,7 @@ type ReceiptForm = {
   agent_nationality: string;
   agent_company_register_number: string;
   agent_note: string;
+  parent_receipt_id: string;
 };
 
 const EMPTY_FORM: ReceiptForm = {
@@ -91,6 +93,7 @@ const EMPTY_FORM: ReceiptForm = {
   agent_nationality: "",
   agent_company_register_number: "",
   agent_note: "",
+  parent_receipt_id: "",
 };
 
 // ─── panel ───────────────────────────────────────────────────────────────────
@@ -104,6 +107,7 @@ interface ReceiptsPanelProps {
 }
 
 export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses, initialServices, initialAgents }: ReceiptsPanelProps) {
+  const router = useRouter();
   const [receipts, setReceipts] = useState<Receipt[]>(initialReceipts);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -185,6 +189,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       agent_nationality: r.agent_nationality ?? "",
       agent_company_register_number: r.agent_company_register_number ?? "",
       agent_note: r.agent_note ?? "",
+      parent_receipt_id: r.parent_receipt_id ?? "",
     });
     setEditingReceipt(r);
     setFormOpen(true);
@@ -283,6 +288,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       agent_nationality: form.agent_nationality || null,
       agent_company_register_number: form.agent_company_register_number || null,
       agent_note: form.agent_note || null,
+      parent_receipt_id: form.parent_receipt_id || null,
     };
 
     if (editingReceipt) {
@@ -372,9 +378,20 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                    {paginated.map((r) => (
+                    {paginated.map((r) => {
+                      const parent = r.parent_receipt_id ? receipts.find((p) => p.id === r.parent_receipt_id) : null;
+                      const hasFollowUp = receipts.some((c) => c.parent_receipt_id === r.id);
+                      return (
                       <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200">{r.receipt_no}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200">
+                          {r.receipt_no}
+                          {parent && (
+                            <div className="mt-0.5 font-sans text-[11px] text-amber-600 dark:text-amber-400">↳ remaining payment of {parent.receipt_no}</div>
+                          )}
+                          {hasFollowUp && (
+                            <div className="mt-0.5 font-sans text-[11px] text-emerald-600 dark:text-emerald-400">has follow-up payment</div>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-xs">{receiptDateStr(r.created_at)}</td>
                         <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{r.student_name}</td>
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
@@ -388,7 +405,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.payment_method}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
-                            <Button variant="ghost" size="sm" className="text-emerald-500 hover:text-emerald-600 h-auto p-0 flex items-center gap-1" onClick={() => window.open(`/admin/receipts/${r.id}/print`, "_blank")}>
+                            <Button variant="ghost" size="sm" className="text-emerald-500 hover:text-emerald-600 h-auto p-0 flex items-center gap-1" onClick={() => router.push(`/admin/receipts/${r.id}/print`)}>
                               <Printer size={13} /> Print
                             </Button>
                             <Button variant="ghost" size="sm" className="text-blue-500 hover:text-blue-600 h-auto p-0 flex items-center gap-1" onClick={() => openEdit(r)}>
@@ -400,7 +417,8 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -460,6 +478,24 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                 onChange={(e) => setForm((p) => ({ ...p, receipt_no: e.target.value }))}
                 className="font-mono"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Linked to Previous Receipt <span className="text-slate-400 text-xs">(optional — for 2nd/3rd payment)</span></label>
+              <Select
+                value={form.parent_receipt_id || "none"}
+                onValueChange={(v) => setForm((p) => ({ ...p, parent_receipt_id: !v || v === "none" ? "" : v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {receipts.filter((r) => r.id !== editingReceipt?.id).map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.receipt_no} — {r.student_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">

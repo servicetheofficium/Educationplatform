@@ -1040,6 +1040,7 @@ export async function createReceipt(data: {
   agent_nationality?: string | null;
   agent_company_register_number?: string | null;
   agent_note?: string | null;
+  parent_receipt_id?: string | null;
 }) {
   const supabase = await createClient();
   try {
@@ -1080,6 +1081,7 @@ export async function updateReceipt(id: string, data: Partial<{
   agent_nationality: string | null;
   agent_company_register_number: string | null;
   agent_note: string | null;
+  parent_receipt_id: string | null;
 }>) {
   const supabase = await createClient();
   try {
