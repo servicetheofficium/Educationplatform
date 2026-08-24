@@ -208,6 +208,7 @@ export function CancelledStudentListPanel({
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    autoResetPageIndex: false,
     initialState: { pagination: { pageSize: PER_PAGE, pageIndex: 0 } },
   });
 
