@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
-import { Stamp, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Link2 } from "lucide-react";
+import { Stamp, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Download, Link2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  getImmigrationPickups, createImmigrationPickup, updateImmigrationPickup, deleteImmigrationPickup,
+  getImmigrationPickups, createImmigrationPickups, updateImmigrationPickup, deleteImmigrationPickup,
   getMinistryDocuments,
 } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
@@ -24,10 +23,18 @@ type PickupForm = {
   document_name: string;
   pickup_date: string;
   recipient_name: string;
-  ministry_document_id: string | null;
 };
 
-const EMPTY_FORM: PickupForm = { document_name: "", pickup_date: "", recipient_name: "", ministry_document_id: null };
+const EMPTY_FORM: PickupForm = { document_name: "", pickup_date: "", recipient_name: "" };
+
+type BulkPickupForm = {
+  pickup_date: string;
+  recipient_name: string;
+  selectedIds: string[];
+  custom_names: string[];
+};
+
+const EMPTY_BULK_FORM: BulkPickupForm = { pickup_date: "", recipient_name: "", selectedIds: [], custom_names: [""] };
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -49,6 +56,7 @@ export function ImmigrationPickupPanel({ initialPickups }: { initialPickups: Imm
   const [editingPickup, setEditingPickup] = useState<ImmigrationPickup | null>(null);
   const [deletingPickup, setDeletingPickup] = useState<ImmigrationPickup | null>(null);
   const [form, setForm] = useState<PickupForm>(EMPTY_FORM);
+  const [bulkForm, setBulkForm] = useState<BulkPickupForm>(EMPTY_BULK_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -81,7 +89,6 @@ export function ImmigrationPickupPanel({ initialPickups }: { initialPickups: Imm
         document_name: editingPickup.document_name,
         pickup_date: editingPickup.pickup_date,
         recipient_name: editingPickup.recipient_name ?? "",
-        ministry_document_id: editingPickup.ministry_document_id,
       });
     }
   }, [editingPickup]);
@@ -101,29 +108,36 @@ export function ImmigrationPickupPanel({ initialPickups }: { initialPickups: Imm
     if (page > max) setPage(max);
   }, [filtered.length, page]);
 
-  const pickMinistryDoc = (id: string | null) => {
-    if (!id || id === "none") {
-      setForm((p) => ({ ...p, ministry_document_id: null }));
-      return;
-    }
-    const doc = pendingDocs.find((d) => d.id === id);
-    if (!doc) return;
-    setForm((p) => ({ ...p, document_name: doc.document_name, ministry_document_id: doc.id }));
+  const toggleSelected = (id: string) => {
+    setBulkForm((p) => ({
+      ...p,
+      selectedIds: p.selectedIds.includes(id) ? p.selectedIds.filter((x) => x !== id) : [...p.selectedIds, id],
+    }));
   };
 
+  const bulkCustomNames = bulkForm.custom_names.map((n) => n.trim()).filter(Boolean);
+  const bulkItemCount = bulkForm.selectedIds.length + bulkCustomNames.length;
+
   const handleCreate = async () => {
+    const items = [
+      ...bulkForm.selectedIds.map((id) => {
+        const doc = pendingDocs.find((d) => d.id === id)!;
+        return { document_name: doc.document_name, ministry_document_id: doc.id };
+      }),
+      ...bulkCustomNames.map((name) => ({ document_name: name, ministry_document_id: null })),
+    ];
+    if (items.length === 0 || !bulkForm.pickup_date) return;
     setSaving(true);
-    const res = await createImmigrationPickup({
-      document_name: form.document_name,
-      pickup_date: form.pickup_date,
-      recipient_name: form.recipient_name || null,
-      ministry_document_id: form.ministry_document_id,
+    const res = await createImmigrationPickups({
+      pickup_date: bulkForm.pickup_date,
+      recipient_name: bulkForm.recipient_name || null,
+      items,
     });
     if (res.success && res.data) {
-      setPickups((prev) => [res.data as ImmigrationPickup, ...prev]);
+      setPickups((prev) => [...(res.data as ImmigrationPickup[]), ...prev]);
       refreshPendingDocs();
       setCreateOpen(false);
-      setForm(EMPTY_FORM);
+      setBulkForm(EMPTY_BULK_FORM);
     }
     setSaving(false);
   };
@@ -208,7 +222,7 @@ export function ImmigrationPickupPanel({ initialPickups }: { initialPickups: Imm
           </Button>
           <Button
             className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2"
-            onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}
+            onClick={() => { setBulkForm(EMPTY_BULK_FORM); setCreateOpen(true); }}
           >
             <Plus size={16} /> Add Pickup
           </Button>
@@ -318,23 +332,27 @@ export function ImmigrationPickupPanel({ initialPickups }: { initialPickups: Imm
         </CardContent>
       </Card>
 
-      {/* Create Sheet */}
+      {/* Create Sheet (bulk) */}
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent side="right" className="sm:max-w-lg flex flex-col">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
             <SheetTitle className="text-lg font-semibold">Add Document Pickup</SheetTitle>
-            <SheetDescription>Fill in the pickup details below.</SheetDescription>
+            <SheetDescription>Check off everything this agent/student is picking up today.</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-6">
-            <PickupFormFields form={form} setForm={setForm} pendingDocs={pendingDocs} onPickMinistryDoc={pickMinistryDoc} />
+            <BulkPickupFormFields form={bulkForm} setForm={setBulkForm} pendingDocs={pendingDocs} onToggle={toggleSelected} />
           </div>
           <SheetFooter className="px-6 py-4 border-t border-border">
             <Button
               onClick={handleCreate}
-              disabled={saving || !form.document_name || !form.pickup_date}
+              disabled={saving || bulkItemCount === 0 || !bulkForm.pickup_date}
               className="w-full bg-brand-600 hover:bg-brand-700"
             >
-              {saving ? "Saving..." : "Add Pickup"}
+              {saving
+                ? "Saving..."
+                : bulkItemCount > 0
+                  ? `Add ${bulkItemCount} Pickup${bulkItemCount === 1 ? "" : "s"}`
+                  : "Add Pickup"}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -348,7 +366,7 @@ export function ImmigrationPickupPanel({ initialPickups }: { initialPickups: Imm
             <SheetDescription>{editingPickup?.document_name}</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-6">
-            <PickupFormFields form={form} setForm={setForm} pendingDocs={pendingDocs} onPickMinistryDoc={pickMinistryDoc} linkLocked />
+            <PickupFormFields form={form} setForm={setForm} />
           </div>
           <SheetFooter className="px-6 py-4 border-t border-border flex flex-col gap-3">
             {saveError && (
@@ -384,35 +402,12 @@ export function ImmigrationPickupPanel({ initialPickups }: { initialPickups: Imm
   );
 }
 
-function PickupFormFields({ form, setForm, pendingDocs, onPickMinistryDoc, linkLocked }: {
+function PickupFormFields({ form, setForm }: {
   form: PickupForm;
   setForm: Dispatch<SetStateAction<PickupForm>>;
-  pendingDocs: MinistryDocument[];
-  onPickMinistryDoc: (id: string | null) => void;
-  linkLocked?: boolean;
 }) {
   return (
     <div className="grid gap-4">
-      {!linkLocked && pendingDocs.length > 0 && (
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Link to Received Document</label>
-          <Select value={form.ministry_document_id ?? "none"} onValueChange={onPickMinistryDoc}>
-            <SelectTrigger className="w-full"><SelectValue placeholder="None — enter manually" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None — enter manually</SelectItem>
-              {pendingDocs.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.document_name} — received {formatDate(d.received_date)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            Matching a pending document marks it as picked up automatically.
-          </p>
-        </div>
-      )}
-
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Name of Document *</label>
         <Input
@@ -436,6 +431,96 @@ function PickupFormFields({ form, setForm, pendingDocs, onPickMinistryDoc, linkL
           value={form.recipient_name}
           onChange={(e) => setForm((p) => ({ ...p, recipient_name: e.target.value }))}
         />
+      </div>
+    </div>
+  );
+}
+
+function BulkPickupFormFields({ form, setForm, pendingDocs, onToggle }: {
+  form: BulkPickupForm;
+  setForm: Dispatch<SetStateAction<BulkPickupForm>>;
+  pendingDocs: MinistryDocument[];
+  onToggle: (id: string) => void;
+}) {
+  const updateCustomName = (i: number, value: string) => {
+    setForm((p) => ({ ...p, custom_names: p.custom_names.map((n, idx) => (idx === i ? value : n)) }));
+  };
+  const addCustomRow = () => setForm((p) => ({ ...p, custom_names: [...p.custom_names, ""] }));
+  const removeCustomRow = (i: number) =>
+    setForm((p) => ({ ...p, custom_names: p.custom_names.filter((_, idx) => idx !== i) }));
+
+  return (
+    <div className="grid gap-4">
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Pickup Date *</label>
+        <DatePicker
+          value={form.pickup_date}
+          onChange={(v) => setForm((p) => ({ ...p, pickup_date: v }))}
+          placeholder="Select pickup date"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Agent or Student Name</label>
+        <Input
+          placeholder="Full name"
+          value={form.recipient_name}
+          onChange={(e) => setForm((p) => ({ ...p, recipient_name: e.target.value }))}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Pending Documents</label>
+        {pendingDocs.length === 0 ? (
+          <p className="text-sm text-slate-400 dark:text-slate-500">No documents pending pickup.</p>
+        ) : (
+          <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-700">
+            {pendingDocs.map((d) => (
+              <label key={d.id} className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                <input
+                  type="checkbox"
+                  checked={form.selectedIds.includes(d.id)}
+                  onChange={() => onToggle(d.id)}
+                  className="w-4 h-4 accent-brand-600 shrink-0"
+                />
+                <span className="flex-1 text-slate-900 dark:text-white">{d.document_name}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">
+                  received {formatDate(d.received_date)}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Other Documents (not on the ministry list)</label>
+        <div className="space-y-2">
+          {form.custom_names.map((name, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                placeholder="e.g. Old Passport Copy"
+                value={name}
+                onChange={(e) => updateCustomName(i, e.target.value)}
+              />
+              {form.custom_names.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeCustomRow(i)}
+                  className="text-slate-400 hover:text-red-400 transition-colors shrink-0"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={addCustomRow}
+          className="text-brand-500 hover:text-brand-600 text-sm font-medium flex items-center gap-1 mt-1"
+        >
+          <Plus size={14} /> Add another document
+        </button>
       </div>
     </div>
   );

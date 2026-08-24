@@ -813,23 +813,20 @@ export async function getMinistryDocuments() {
   }
 }
 
-export async function createMinistryDocument(data: {
-  document_name: string;
-  received_date: string;
-  staff_name?: string | null;
-}) {
+export async function createMinistryDocuments(
+  rows: { document_name: string; received_date: string; staff_name?: string | null }[]
+) {
   const supabase = await createClient();
   try {
     const { data: result, error } = await supabase
       .from("ministry_documents")
-      .insert([data])
-      .select()
-      .single();
+      .insert(rows)
+      .select();
     if (error) throw error;
-    logAdminActivity("create", "ministry_documents", result.id, data);
-    return { success: true, data: result };
+    result?.forEach((r) => logAdminActivity("create", "ministry_documents", r.id, r));
+    return { success: true, data: result || [] };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to create ministry document" };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create ministry documents" };
   }
 }
 
@@ -885,52 +882,40 @@ export async function getImmigrationPickups() {
   }
 }
 
-export async function createImmigrationPickup(data: {
-  document_name: string;
+export async function createImmigrationPickups(data: {
   pickup_date: string;
   recipient_name?: string | null;
-  ministry_document_id?: string | null;
+  items: { document_name: string; ministry_document_id?: string | null }[];
 }) {
   const supabase = await createClient();
   try {
-    let ministryDocumentId = data.ministry_document_id ?? null;
-
-    // No explicit link picked -- fall back to matching an unpicked ministry
-    // document with the same name so the two lists stay in sync either way.
-    if (!ministryDocumentId) {
-      const { data: match } = await supabase
-        .from("ministry_documents")
-        .select("id")
-        .ilike("document_name", data.document_name.trim())
-        .is("picked_up_at", null)
-        .limit(1)
-        .maybeSingle();
-      if (match) ministryDocumentId = match.id;
-    }
+    const rows = data.items.map((item) => ({
+      document_name: item.document_name,
+      pickup_date: data.pickup_date,
+      recipient_name: data.recipient_name ?? null,
+      ministry_document_id: item.ministry_document_id ?? null,
+    }));
 
     const { data: result, error } = await supabase
       .from("immigration_pickups")
-      .insert([{
-        document_name: data.document_name,
-        pickup_date: data.pickup_date,
-        recipient_name: data.recipient_name ?? null,
-        ministry_document_id: ministryDocumentId,
-      }])
-      .select("*, ministry_documents(received_date, document_name)")
-      .single();
+      .insert(rows)
+      .select("*, ministry_documents(received_date, document_name)");
     if (error) throw error;
 
-    if (ministryDocumentId) {
+    const linkedIds = data.items
+      .map((i) => i.ministry_document_id)
+      .filter((id): id is string => !!id);
+    if (linkedIds.length > 0) {
       await supabase
         .from("ministry_documents")
         .update({ picked_up_at: data.pickup_date, updated_at: new Date().toISOString() })
-        .eq("id", ministryDocumentId);
+        .in("id", linkedIds);
     }
 
-    logAdminActivity("create", "immigration_pickups", result.id, data);
-    return { success: true, data: result };
+    result?.forEach((r) => logAdminActivity("create", "immigration_pickups", r.id, r));
+    return { success: true, data: result || [] };
   } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : "Failed to create immigration pickup" };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create immigration pickups" };
   }
 }
 

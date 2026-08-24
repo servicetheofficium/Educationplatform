@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
-import { Landmark, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Landmark, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  getMinistryDocuments, createMinistryDocument, updateMinistryDocument, deleteMinistryDocument,
+  getMinistryDocuments, createMinistryDocuments, updateMinistryDocument, deleteMinistryDocument,
 } from "@/lib/crud";
 import { createClient } from "@/utils/supabase/client";
 import type { MinistryDocument } from "@/lib/types";
@@ -26,6 +26,14 @@ type DocForm = {
 
 const EMPTY_FORM: DocForm = { document_name: "", received_date: "", staff_name: "" };
 
+type BulkDocForm = {
+  received_date: string;
+  staff_name: string;
+  document_names: string[];
+};
+
+const EMPTY_BULK_FORM: BulkDocForm = { received_date: "", staff_name: "", document_names: [""] };
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -39,6 +47,7 @@ export function MinistryDocumentsPanel({ initialDocuments }: { initialDocuments:
   const [editingDoc, setEditingDoc] = useState<MinistryDocument | null>(null);
   const [deletingDoc, setDeletingDoc] = useState<MinistryDocument | null>(null);
   const [form, setForm] = useState<DocForm>(EMPTY_FORM);
+  const [bulkForm, setBulkForm] = useState<BulkDocForm>(EMPTY_BULK_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -82,17 +91,22 @@ export function MinistryDocumentsPanel({ initialDocuments }: { initialDocuments:
     if (page > max) setPage(max);
   }, [filtered.length, page]);
 
+  const bulkNames = bulkForm.document_names.map((n) => n.trim()).filter(Boolean);
+
   const handleCreate = async () => {
+    if (bulkNames.length === 0) return;
     setSaving(true);
-    const res = await createMinistryDocument({
-      document_name: form.document_name,
-      received_date: form.received_date,
-      staff_name: form.staff_name || null,
-    });
+    const res = await createMinistryDocuments(
+      bulkNames.map((name) => ({
+        document_name: name,
+        received_date: bulkForm.received_date,
+        staff_name: bulkForm.staff_name || null,
+      }))
+    );
     if (res.success && res.data) {
-      setDocuments((prev) => [res.data as MinistryDocument, ...prev]);
+      setDocuments((prev) => [...(res.data as MinistryDocument[]), ...prev]);
       setCreateOpen(false);
-      setForm(EMPTY_FORM);
+      setBulkForm(EMPTY_BULK_FORM);
     }
     setSaving(false);
   };
@@ -171,7 +185,7 @@ export function MinistryDocumentsPanel({ initialDocuments }: { initialDocuments:
           </Button>
           <Button
             className="bg-brand-600 hover:bg-brand-700 flex items-center gap-2"
-            onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}
+            onClick={() => { setBulkForm(EMPTY_BULK_FORM); setCreateOpen(true); }}
           >
             <Plus size={16} /> Add Document
           </Button>
@@ -279,23 +293,27 @@ export function MinistryDocumentsPanel({ initialDocuments }: { initialDocuments:
         </CardContent>
       </Card>
 
-      {/* Create Sheet */}
+      {/* Create Sheet (bulk) */}
       <Sheet open={createOpen} onOpenChange={setCreateOpen}>
         <SheetContent side="right" className="sm:max-w-lg flex flex-col">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-border">
-            <SheetTitle className="text-lg font-semibold">Add Ministry Document</SheetTitle>
-            <SheetDescription>Fill in the document details below.</SheetDescription>
+            <SheetTitle className="text-lg font-semibold">Add Ministry Documents</SheetTitle>
+            <SheetDescription>One date and staff name applies to every document below.</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-6">
-            <DocFormFields form={form} setForm={setForm} />
+            <BulkDocFormFields form={bulkForm} setForm={setBulkForm} />
           </div>
           <SheetFooter className="px-6 py-4 border-t border-border">
             <Button
               onClick={handleCreate}
-              disabled={saving || !form.document_name || !form.received_date}
+              disabled={saving || bulkNames.length === 0 || !bulkForm.received_date}
               className="w-full bg-brand-600 hover:bg-brand-700"
             >
-              {saving ? "Saving..." : "Add Document"}
+              {saving
+                ? "Saving..."
+                : bulkNames.length > 0
+                  ? `Add ${bulkNames.length} Document${bulkNames.length === 1 ? "" : "s"}`
+                  : "Add Documents"}
             </Button>
           </SheetFooter>
         </SheetContent>
@@ -373,6 +391,70 @@ function DocFormFields({ form, setForm }: {
           value={form.staff_name}
           onChange={(e) => setForm((p) => ({ ...p, staff_name: e.target.value }))}
         />
+      </div>
+    </div>
+  );
+}
+
+function BulkDocFormFields({ form, setForm }: {
+  form: BulkDocForm;
+  setForm: Dispatch<SetStateAction<BulkDocForm>>;
+}) {
+  const updateName = (i: number, value: string) => {
+    setForm((p) => ({ ...p, document_names: p.document_names.map((n, idx) => (idx === i ? value : n)) }));
+  };
+  const addRow = () => setForm((p) => ({ ...p, document_names: [...p.document_names, ""] }));
+  const removeRow = (i: number) =>
+    setForm((p) => ({ ...p, document_names: p.document_names.filter((_, idx) => idx !== i) }));
+
+  return (
+    <div className="grid gap-4">
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Date Received *</label>
+        <DatePicker
+          value={form.received_date}
+          onChange={(v) => setForm((p) => ({ ...p, received_date: v }))}
+          placeholder="Select date received"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Staff Name</label>
+        <Input
+          placeholder="Admin"
+          value={form.staff_name}
+          onChange={(e) => setForm((p) => ({ ...p, staff_name: e.target.value }))}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium">Name(s) of Document *</label>
+        <div className="space-y-2">
+          {form.document_names.map((name, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                placeholder="e.g. Visa Approval Letter"
+                value={name}
+                onChange={(e) => updateName(i, e.target.value)}
+              />
+              {form.document_names.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  className="text-slate-400 hover:text-red-400 transition-colors shrink-0"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={addRow}
+          className="text-brand-500 hover:text-brand-600 text-sm font-medium flex items-center gap-1 mt-1"
+        >
+          <Plus size={14} /> Add another document
+        </button>
       </div>
     </div>
   );
