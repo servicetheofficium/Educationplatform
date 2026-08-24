@@ -473,7 +473,11 @@ export async function updateStudent(
     return {
       success: false,
       error:
-        error instanceof Error ? error.message : "Failed to update student",
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error !== null && "message" in error
+            ? String((error as { message: unknown }).message)
+            : "Failed to update student",
     };
   }
 }
