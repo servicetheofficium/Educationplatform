@@ -797,6 +797,186 @@ export async function deleteDocumentService(id: string) {
   }
 }
 
+// ============ MINISTRY DOCUMENTS ============
+
+export async function getMinistryDocuments() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("ministry_documents")
+      .select("*")
+      .order("received_date", { ascending: false });
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to fetch ministry documents" };
+  }
+}
+
+export async function createMinistryDocuments(
+  rows: { document_name: string; received_date: string; staff_name?: string | null }[]
+) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("ministry_documents")
+      .insert(rows)
+      .select();
+    if (error) throw error;
+    result?.forEach((r) => logAdminActivity("create", "ministry_documents", r.id, r));
+    return { success: true, data: result || [] };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create ministry documents" };
+  }
+}
+
+export async function updateMinistryDocument(
+  id: string,
+  data: Partial<{
+    document_name: string;
+    received_date: string;
+    staff_name: string | null;
+  }>
+) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("ministry_documents")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select()
+      .single();
+    if (error) throw error;
+    logAdminActivity("update", "ministry_documents", id, data);
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update ministry document" };
+  }
+}
+
+export async function deleteMinistryDocument(id: string) {
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase.from("ministry_documents").delete().eq("id", id);
+    if (error) throw error;
+    logAdminActivity("delete", "ministry_documents", id);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to delete ministry document" };
+  }
+}
+
+// ============ IMMIGRATION PICKUPS ============
+
+export async function getImmigrationPickups() {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from("immigration_pickups")
+      .select("*, ministry_documents(received_date, document_name)")
+      .order("pickup_date", { ascending: false });
+    if (error) throw error;
+    return { success: true, data: data || [] };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to fetch immigration pickups" };
+  }
+}
+
+export async function createImmigrationPickups(data: {
+  pickup_date: string;
+  recipient_name?: string | null;
+  items: { document_name: string; ministry_document_id?: string | null }[];
+}) {
+  const supabase = await createClient();
+  try {
+    const rows = data.items.map((item) => ({
+      document_name: item.document_name,
+      pickup_date: data.pickup_date,
+      recipient_name: data.recipient_name ?? null,
+      ministry_document_id: item.ministry_document_id ?? null,
+    }));
+
+    const { data: result, error } = await supabase
+      .from("immigration_pickups")
+      .insert(rows)
+      .select("*, ministry_documents(received_date, document_name)");
+    if (error) throw error;
+
+    const linkedIds = data.items
+      .map((i) => i.ministry_document_id)
+      .filter((id): id is string => !!id);
+    if (linkedIds.length > 0) {
+      await supabase
+        .from("ministry_documents")
+        .update({ picked_up_at: data.pickup_date, updated_at: new Date().toISOString() })
+        .in("id", linkedIds);
+    }
+
+    result?.forEach((r) => logAdminActivity("create", "immigration_pickups", r.id, r));
+    return { success: true, data: result || [] };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create immigration pickups" };
+  }
+}
+
+export async function updateImmigrationPickup(
+  id: string,
+  data: Partial<{
+    document_name: string;
+    pickup_date: string;
+    recipient_name: string | null;
+  }>
+) {
+  const supabase = await createClient();
+  try {
+    const { data: result, error } = await supabase
+      .from("immigration_pickups")
+      .update({ ...data, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("*, ministry_documents(received_date, document_name)")
+      .single();
+    if (error) throw error;
+
+    if (data.pickup_date && result.ministry_document_id) {
+      await supabase
+        .from("ministry_documents")
+        .update({ picked_up_at: data.pickup_date, updated_at: new Date().toISOString() })
+        .eq("id", result.ministry_document_id);
+    }
+
+    logAdminActivity("update", "immigration_pickups", id, data);
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update immigration pickup" };
+  }
+}
+
+export async function deleteImmigrationPickup(id: string) {
+  const supabase = await createClient();
+  try {
+    const { data: pickup } = await supabase
+      .from("immigration_pickups")
+      .select("ministry_document_id")
+      .eq("id", id)
+      .single();
+
+    const { error } = await supabase.from("immigration_pickups").delete().eq("id", id);
+    if (error) throw error;
+
+    if (pickup?.ministry_document_id) {
+      await supabase
+        .from("ministry_documents")
+        .update({ picked_up_at: null, updated_at: new Date().toISOString() })
+        .eq("id", pickup.ministry_document_id);
+    }
+
+    logAdminActivity("delete", "immigration_pickups", id);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Failed to delete immigration pickup" };
+  }
+}
+
 // ============ SERVICE REQUESTS ============
 
 export async function getServiceRequests() {

@@ -2,7 +2,7 @@
 
 import { logout } from "@/lib/auth";
 import type { AdminUser } from "@/lib/types";
-import { BarChart3, FileText, List, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Wrench, UserX, Bell, Receipt, History, Users } from "lucide-react";
+import { BarChart3, FileText, List, LogOut, PanelLeftClose, PanelLeftOpen, Settings, Wrench, UserX, Bell, Receipt, History, Users, Landmark, Stamp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -13,6 +13,8 @@ const navItems = [
   { href: "/admin/students", label: "Student List", icon: List },
   { href: "/admin/cancelled-students", label: "Student Cancel List", icon: UserX },
   { href: "/admin/document-notifications", label: "Document Submit Notification", icon: Bell },
+  { href: "/admin/ministry-documents", label: "Ministry Documents", icon: Landmark },
+  { href: "/admin/immigration-pickups", label: "Immigration Pickup", icon: Stamp },
   { href: "/admin/services", label: "Services", icon: Wrench },
   { href: "/admin/agents", label: "Agent List", icon: Users },
   { href: "/admin/receipts", label: "Receipts", icon: Receipt },

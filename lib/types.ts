@@ -136,6 +136,27 @@ export type DocumentService = {
   updated_at: string;
 };
 
+export type MinistryDocument = {
+  id: string;
+  document_name: string;
+  received_date: string;
+  staff_name: string | null;
+  picked_up_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ImmigrationPickup = {
+  id: string;
+  document_name: string;
+  pickup_date: string;
+  recipient_name: string | null;
+  ministry_document_id: string | null;
+  created_at: string;
+  updated_at: string;
+  ministry_documents: { received_date: string; document_name: string } | null;
+};
+
 export type ServiceRequestStatus = "pending" | "processing" | "completed" | "cancelled";
 
 export type ReceiptItem = { name: string; amount: number };
