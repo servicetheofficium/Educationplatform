@@ -721,6 +721,7 @@ export function StudentListPanel({
     getPaginationRowModel: getPaginationRowModel(),
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
+    autoResetPageIndex: false,
     state: { rowSelection },
     initialState: {
       pagination: { pageSize: PER_PAGE, pageIndex: 0 },
