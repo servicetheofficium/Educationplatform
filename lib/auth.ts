@@ -4,9 +4,18 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { loginRatelimit } from "./ratelimit";
 import type { AdminUser } from "./types";
 
 export async function login(email: string, password: string) {
+  const { success } = await loginRatelimit.limit(email.trim().toLowerCase());
+  if (!success) {
+    return {
+      success: false,
+      error: "Too many login attempts. Try again in a few minutes.",
+    };
+  }
+
   const supabase = await createClient();
 
   try {
@@ -24,19 +33,20 @@ export async function login(email: string, password: string) {
       .eq("id", data.user.id)
       .single();
 
-    if (userError)
-      throw new Error(`Failed to fetch user profile: ${userError.message}`);
-    if (!userData) throw new Error("User profile not found");
-    if (userData.user_type !== "admin") {
-      await supabase.auth.signOut();
-      throw new Error("Access denied. Admin users only.");
+    if (userError || !userData || userData.user_type !== "admin") {
+      if (userData && userData.user_type !== "admin") {
+        await supabase.auth.signOut();
+      }
+      console.error("Login failed:", userError?.message ?? "profile missing or not admin");
+      return { success: false, error: "Login failed" };
     }
 
     return { success: true, user: userData as AdminUser };
   } catch (error) {
+    console.error("Login failed:", error instanceof Error ? error.message : error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Login failed",
+      error: "Login failed",
     };
   }
 }
