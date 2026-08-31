@@ -11,7 +11,8 @@
     "db:setup": "supabase db query --linked -f sql/setup.sql",
     "db:seed": "supabase db query --linked -f sql/seed.sql",
     "db:reset": "supabase db query --linked -f sql/reset.sql",
-    "db:migrate": "bun run db:reset && bun run db:setup && bun run db:seed"
+    "db:migrate": "bun run db:reset && bun run db:setup && bun run db:seed",
+    "db:backup": "bash scripts/backup-db.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -25,6 +26,8 @@
     "@supabase/supabase-js": "^2.106.2",
     "@tanstack/react-table": "^8.21.3",
     "@types/nodemailer": "^8.0.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.3",
     "@vercel/analytics": "^2.0.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
