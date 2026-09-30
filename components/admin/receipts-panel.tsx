@@ -228,7 +228,8 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
     setForm((p) => ({
       ...p,
       items: [...p.items, { name: c.name, amount: c.price }],
-      duration: c.duration_weeks ? `${c.duration_weeks} weeks` : p.duration,
+      // Only prefill when empty so a manually typed duration (e.g. "6 months") is kept
+      duration: p.duration.trim() || (c.duration_weeks ? `${c.duration_weeks} weeks` : ""),
     }));
   };
 
@@ -538,7 +539,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Duration <span className="text-slate-400 text-xs">(not on receipt)</span></label>
                 <Input
-                  placeholder="e.g. 8 weeks"
+                  placeholder="e.g. 6 months"
                   value={form.duration}
                   onChange={(e) => setForm((p) => ({ ...p, duration: e.target.value }))}
                 />
