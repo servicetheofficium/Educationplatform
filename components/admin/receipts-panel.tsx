@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Plus, Printer, Trash2, Pencil, Search, X, ChevronLeft, ChevronRight, Receipt as ReceiptIcon,
+  Plus, Printer, Trash2, Pencil, Search, X, ChevronLeft, ChevronRight, ChevronsUpDown, Receipt as ReceiptIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command, CommandEmpty, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/utils/supabase/client";
@@ -44,6 +48,67 @@ function generateReceiptNo(existing: Receipt[]): string {
     .filter((n) => !isNaN(n));
   const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
   return `R-${String(next).padStart(6, "0")}`;
+}
+
+// ─── searchable quick-fill picker ────────────────────────────────────────────
+
+type PickerOption = { id: string; label: string; sublabel?: string; keywords: (string | null | undefined)[] };
+
+function SearchPicker({
+  options, value, onPick, placeholder, searchPlaceholder, emptyText,
+}: {
+  options: PickerOption[];
+  value: string | null;
+  onPick: (id: string) => void;
+  placeholder: string;
+  searchPlaceholder: string;
+  emptyText: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const picked = options.find((o) => o.id === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        {picked
+          ? <span className="truncate">{picked.label}</span>
+          : <span className="text-muted-foreground">{placeholder}</span>}
+        <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-(--anchor-width) min-w-72 p-0">
+        {/* Plain substring match on keywords; cmdk's default fuzzy filter also hits the id */}
+        <Command
+          filter={(_value, search, keywords) =>
+            (keywords ?? []).join(" ").toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0
+          }
+        >
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList>
+            <CommandEmpty>{emptyText}</CommandEmpty>
+            {options.map((o) => (
+              <CommandItem
+                key={o.id}
+                value={o.id}
+                keywords={o.keywords.filter((k): k is string => !!k)}
+                data-checked={o.id === value}
+                onSelect={(id) => {
+                  onPick(id);
+                  setOpen(false);
+                }}
+              >
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate">{o.label}</span>
+                  {o.sublabel && <span className="truncate text-xs text-muted-foreground">{o.sublabel}</span>}
+                </div>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ─── form type ───────────────────────────────────────────────────────────────
@@ -117,6 +182,8 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [form, setForm] = useState<ReceiptForm>(EMPTY_FORM);
+  const [pickedStudentId, setPickedStudentId] = useState<string | null>(null);
+  const [pickedAgentId, setPickedAgentId] = useState<string | null>(null);
 
   const filtered = receipts.filter((r) => {
     if (!r?.receipt_no || !r?.student_name) return false;
@@ -156,11 +223,15 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
     setForm({ ...EMPTY_FORM, receipt_no: generateReceiptNo(receipts) });
     setEditingReceipt(null);
     setSaveError(null);
+    setPickedStudentId(null);
+    setPickedAgentId(null);
     setFormOpen(true);
   };
 
   const openEdit = (r: Receipt) => {
     setSaveError(null);
+    setPickedStudentId(null);
+    setPickedAgentId(null);
     let items: ReceiptItem[] = [];
     if (r.items && r.items.length > 0) {
       items = r.items;
@@ -199,6 +270,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
     if (!id) return;
     const s = initialStudents.find((s) => s.id === id);
     if (!s) return;
+    setPickedStudentId(id);
     setForm((p) => ({
       ...p,
       student_name: s.profiles?.full_name ?? s.name ?? "",
@@ -212,6 +284,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
     if (!id) return;
     const a = initialAgents.find((a) => a.id === id);
     if (!a) return;
+    setPickedAgentId(id);
     setForm((p) => ({
       ...p,
       agent_name: a.name ?? "",
@@ -458,16 +531,23 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
             {initialStudents.length > 0 && (
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Quick-fill from Student</label>
-                <Select onValueChange={pickStudent}>
-                  <SelectTrigger><SelectValue placeholder="Select student…" /></SelectTrigger>
-                  <SelectContent>
-                    {initialStudents.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.profiles?.full_name ?? s.name ?? s.id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchPicker
+                  value={pickedStudentId}
+                  onPick={pickStudent}
+                  placeholder="Search student…"
+                  searchPlaceholder="Name, email, phone or passport…"
+                  emptyText="No student found."
+                  options={initialStudents.map((s) => {
+                    const name = s.profiles?.full_name ?? s.name ?? s.id;
+                    const email = s.profiles?.email ?? s.email;
+                    return {
+                      id: s.id,
+                      label: name,
+                      sublabel: [email, s.phone].filter(Boolean).join(" · "),
+                      keywords: [name, email, s.phone, s.passport_number],
+                    };
+                  })}
+                />
               </div>
             )}
 
@@ -703,16 +783,19 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
               {initialAgents.length > 0 && (
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Quick-fill from Agent</label>
-                  <Select onValueChange={pickAgent}>
-                    <SelectTrigger><SelectValue placeholder="Select agent…" /></SelectTrigger>
-                    <SelectContent>
-                      {initialAgents.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name}{a.company_name ? ` — ${a.company_name}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchPicker
+                    value={pickedAgentId}
+                    onPick={pickAgent}
+                    placeholder="Search agent…"
+                    searchPlaceholder="Name, company, email or phone…"
+                    emptyText="No agent found."
+                    options={initialAgents.map((a) => ({
+                      id: a.id,
+                      label: a.name,
+                      sublabel: [a.company_name, a.email, a.phone].filter(Boolean).join(" · "),
+                      keywords: [a.name, a.company_name, a.email, a.phone, a.id_passport_number],
+                    }))}
+                  />
                 </div>
               )}
 
