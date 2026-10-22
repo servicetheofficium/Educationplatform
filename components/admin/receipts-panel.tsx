@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  Command, CommandEmpty, CommandInput, CommandItem, CommandList,
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +38,63 @@ function receiptDateStr(createdAt: string) {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${day}/${mon}/${yr} ${hh}:${mm}`;
+}
+
+// Staff link receipts through free-text notes on the later receipt, e.g.
+//   "This receipt settles the remaining amount of R-002/2026"  → R-002/2026 is paid in full
+//   "This receipt is replacing from R-008/2026."               → R-008/2026 is void
+// Receipt numbers are sometimes typed with spaces ("R - 023/2026"), so they are normalised.
+const RECEIPT_NO_PATTERN = String.raw`(R\s*-\s*[^\s,;]+?)\.?(?=\s|,|;|$)`;
+const SETTLES_RE = new RegExp(String.raw`settles the remaining amount of\s+` + RECEIPT_NO_PATTERN, "gi");
+const REPLACES_RE = new RegExp(String.raw`replacing (?:from\s+)?` + RECEIPT_NO_PATTERN, "gi");
+
+const normNo = (no: string) => no.replace(/\s+/g, "").toLowerCase();
+
+type NoteLinks = { settled: Set<string>; replacedBy: Map<string, string> };
+
+function noteLinks(receipts: Receipt[]): NoteLinks {
+  const settled = new Set<string>();
+  const replacedBy = new Map<string, string>();
+  for (const r of receipts) {
+    const note = r.receipt_note ?? "";
+    for (const m of note.matchAll(SETTLES_RE)) settled.add(normNo(m[1]));
+    for (const m of note.matchAll(REPLACES_RE)) replacedBy.set(normNo(m[1]), r.receipt_no);
+  }
+  return { settled, replacedBy };
+}
+
+// Some receipts record the balance only in the note, e.g.
+// "Next payment will be on ... The remaining amount is 11300 THB."
+const NOTE_REMAINING_RE = /remaining amount is\s*(?:฿|THB\s*)?([\d,]+(?:\.\d+)?)/i;
+const NOTE_NEXT_PAYMENT_RE = /next payment/i;
+
+// A settling receipt's note quotes the *other* receipt's balance
+// ("On receipt R-023/2026, the remaining amount is 2410 baht"), so its note text is not its own balance.
+const noteDescribesOwnBalance = (note: string) => !/settles the remaining amount of/i.test(note);
+
+function remainingOf(r: Receipt): number {
+  if ((r.remaining_amount ?? 0) > 0) return r.remaining_amount;
+  const note = r.receipt_note ?? "";
+  if (!noteDescribesOwnBalance(note)) return 0;
+  const m = note.match(NOTE_REMAINING_RE);
+  return m ? Number(m[1].replace(/,/g, "")) || 0 : 0;
+}
+
+function hasBalance(r: Receipt) {
+  const note = r.receipt_note ?? "";
+  return remainingOf(r) > 0 || !!r.next_payment_date || (noteDescribesOwnBalance(note) && NOTE_NEXT_PAYMENT_RE.test(note));
+}
+
+const replacedBy = (r: Receipt, links: NoteLinks) => links.replacedBy.get(normNo(r.receipt_no));
+
+function isOutstanding(r: Receipt, links: NoteLinks) {
+  const no = normNo(r.receipt_no);
+  return hasBalance(r) && !links.settled.has(no) && !links.replacedBy.has(no);
+}
+
+function dueLabel(r: Receipt) {
+  const amt = remainingOf(r);
+  return amt > 0 ? `฿${amt.toLocaleString()} due` : "balance pending";
 }
 
 function generateReceiptNo(existing: Receipt[]): string {
@@ -104,6 +161,108 @@ function SearchPicker({
                 </div>
               </CommandItem>
             ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─── linked-receipt picker ───────────────────────────────────────────────────
+
+function ReceiptLinkPicker({
+  receipts, value, onChange, studentName, settled,
+}: {
+  receipts: Receipt[];
+  value: string;
+  onChange: (id: string) => void;
+  studentName: string;
+  settled: NoteLinks;
+}) {
+  const [open, setOpen] = useState(false);
+  const picked = receipts.find((r) => r.id === value);
+
+  // Same student first, then receipts still owing money, then everything else
+  const name = studentName.trim().toLowerCase();
+  const sameStudent = name ? receipts.filter((r) => r.student_name.toLowerCase() === name) : [];
+  const rest = receipts.filter((r) => !sameStudent.includes(r));
+  const outstanding = rest.filter((r) => isOutstanding(r, settled));
+  const others = rest.filter((r) => !isOutstanding(r, settled));
+
+  const renderItem = (r: Receipt) => (
+    <CommandItem
+      key={r.id}
+      value={r.id}
+      keywords={[r.receipt_no, r.student_name, r.phone, r.email, r.passport_no].filter((k): k is string => !!k)}
+      data-checked={r.id === value}
+      onSelect={(id) => { onChange(id); setOpen(false); }}
+    >
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate">
+            <span className="font-mono text-xs">{r.receipt_no}</span> — {r.student_name}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">
+            {receiptDateStr(r.created_at)} · Total ฿{r.total_amount.toLocaleString()}
+          </span>
+        </div>
+        {isOutstanding(r, settled) ? (
+          <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+            {dueLabel(r)}
+          </span>
+        ) : replacedBy(r, settled) ? (
+          <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-500/15 dark:text-slate-400">
+            Replaced
+          </span>
+        ) : hasBalance(r) && (
+          <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+            Settled
+          </span>
+        )}
+      </div>
+    </CommandItem>
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        {picked
+          ? <span className="truncate"><span className="font-mono text-xs">{picked.receipt_no}</span> — {picked.student_name}</span>
+          : <span className="text-muted-foreground">None (first payment)</span>}
+        <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-(--anchor-width) min-w-80 p-0">
+        <Command
+          filter={(_value, search, keywords) =>
+            (keywords ?? []).join(" ").toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0
+          }
+        >
+          <CommandInput placeholder="Receipt no, student, phone, email…" />
+          <CommandList className="max-h-80">
+            <CommandEmpty>No receipt found.</CommandEmpty>
+            {picked && (
+              <CommandGroup>
+                <CommandItem
+                  value="__clear__"
+                  keywords={["none", "remove", "clear", "unlink"]}
+                  onSelect={() => { onChange(""); setOpen(false); }}
+                  className="text-red-500"
+                >
+                  <X className="size-4" /> Remove link
+                </CommandItem>
+              </CommandGroup>
+            )}
+            {sameStudent.length > 0 && (
+              <CommandGroup heading={`Same student (${sameStudent.length})`}>{sameStudent.map(renderItem)}</CommandGroup>
+            )}
+            {outstanding.length > 0 && (
+              <CommandGroup heading={`Outstanding balance (${outstanding.length})`}>{outstanding.map(renderItem)}</CommandGroup>
+            )}
+            {others.length > 0 && (
+              <CommandGroup heading="Other receipts">{others.map(renderItem)}</CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -194,6 +353,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       r.course_name.toLowerCase().includes(q)
     );
   });
+  const settled = noteLinks(receipts);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
@@ -291,6 +451,22 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
       agent_phone: a.phone ?? "",
       agent_email: a.email ?? "",
       agent_nationality: a.nationality ?? "",
+    }));
+  };
+
+  const linkParent = (id: string) => {
+    const parent = receipts.find((r) => r.id === id);
+    setForm((p) => ({
+      ...p,
+      parent_receipt_id: id,
+      // Follow-up payment is for the same student — prefill only fields still empty
+      ...(parent && {
+        student_name: p.student_name || parent.student_name,
+        phone: p.phone || (parent.phone ?? ""),
+        email: p.email || (parent.email ?? ""),
+        passport_no: p.passport_no || (parent.passport_no ?? ""),
+        duration: p.duration || (parent.duration ?? ""),
+      }),
     }));
   };
 
@@ -447,6 +623,7 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                       <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Student</th>
                       <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Items</th>
                       <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Total</th>
+                      <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Status</th>
                       <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Method</th>
                       <th className="text-left px-4 py-3 font-medium text-slate-600 dark:text-slate-300">Actions</th>
                     </tr>
@@ -476,6 +653,22 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
                             : r.course_name}
                         </td>
                         <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">฿{r.total_amount.toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          {isOutstanding(r, settled) ? (
+                            <span className="inline-flex flex-col rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                              Outstanding
+                              <span className="text-[11px] font-normal">{dueLabel(r)}</span>
+                            </span>
+                          ) : replacedBy(r, settled) ? (
+                            <span className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-500/15 dark:text-slate-400">
+                              Replaced by {replacedBy(r, settled)}
+                            </span>
+                          ) : (
+                            <span className="inline-flex rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                              {hasBalance(r) ? "Paid in full (settled)" : "Paid in full"}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.payment_method}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -563,20 +756,16 @@ export function ReceiptsPanel({ initialReceipts, initialStudents, initialCourses
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Linked to Previous Receipt <span className="text-slate-400 text-xs">(optional — for 2nd/3rd payment)</span></label>
-              <Select
-                value={form.parent_receipt_id || "none"}
-                onValueChange={(v) => setForm((p) => ({ ...p, parent_receipt_id: !v || v === "none" ? "" : v }))}
-              >
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {receipts.filter((r) => r.id !== editingReceipt?.id).map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.receipt_no} — {r.student_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ReceiptLinkPicker
+                // Exclude self and direct follow-ups so a receipt can't link into a loop
+                receipts={receipts.filter((r) =>
+                  r.id !== editingReceipt?.id && (!editingReceipt || r.parent_receipt_id !== editingReceipt.id)
+                )}
+                value={form.parent_receipt_id}
+                studentName={form.student_name}
+                settled={settled}
+                onChange={linkParent}
+              />
             </div>
 
             <div className="space-y-1.5">
